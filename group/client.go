@@ -10,6 +10,7 @@ import (
 	"hash"
 	"net"
 	"runtime"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
@@ -41,6 +42,9 @@ func ConstantTimeCompare(a, b string) bool {
 }
 
 func (p Password) Match(pw string) (bool, error) {
+	if strings.TrimSpace(pw) == "" {
+		return false, nil
+	}
 	switch p.Type {
 	case "":
 		return false, nil

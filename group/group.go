@@ -968,6 +968,9 @@ func (desc *Description) getPasswordPermission(creds ClientCredentials) (Permiss
 	if creds.Username == nil {
 		return Permissions{}, errors.New("username not provided")
 	}
+	if strings.TrimSpace(creds.Password) == "" {
+		return Permissions{}, ErrBadPassword
+	}
 	if desc.Users != nil {
 		if c, found := desc.Users[*creds.Username]; found {
 			ok, err := c.Password.Match(creds.Password)

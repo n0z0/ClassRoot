@@ -353,6 +353,11 @@ async function join() {
             probingState = null;
         }
         let pw = getInputElement('password').value;
+        if(!token && (!pw || !pw.trim())) {
+            displayError('Password wajib diisi');
+            getInputElement('password').focus();
+            return;
+        }
         getInputElement('password').value = '';
         if(!groupStatus.authServer) {
             pwAuth = true;
@@ -3892,6 +3897,13 @@ document.getElementById('loginform').onsubmit = async function(e) {
     if(!token && (!usernameInput.value || !usernameInput.value.trim())) {
         displayError('Username wajib diisi');
         usernameInput.focus();
+        return;
+    }
+
+    let passwordInput = getInputElement('password');
+    if(!token && (!passwordInput.value || !passwordInput.value.trim())) {
+        displayError('Password wajib diisi');
+        passwordInput.focus();
         return;
     }
 
