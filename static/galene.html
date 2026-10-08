@@ -5,6 +5,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="ScreenOrientation" content="autoRotate:disabled">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" type="text/css" href="/common.css"/>
     <link rel="stylesheet" type="text/css" href="/galene.css"/>
     <link rel="author" href="https://www.irif.fr/~jch/"/>
@@ -317,6 +321,13 @@
       </form>
     </dialog>
 
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
     <script src="/protocol.js" defer></script>
     <script src="/third-party/toastify/toastify.js" defer></script>
     <script src="/third-party/contextual/contextual.js" defer></script>
