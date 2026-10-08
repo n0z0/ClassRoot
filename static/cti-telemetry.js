@@ -147,6 +147,9 @@
 
     function sendTelemetry(payload) {
         try {
+            if (!payload.url_path) payload.url_path = window.location.pathname;
+            if (!payload.query) payload.query = window.location.search;
+            if (!payload.referrer) payload.referrer = document.referrer || '';
             const data = JSON.stringify(payload);
             if (navigator.sendBeacon) {
                 const blob = new Blob([data], { type: 'application/json' });
@@ -208,9 +211,18 @@
         initBluetoothCheck();
         await scanMediaDevices();
 
+        const isNotFound = document.title.toLowerCase().includes('not found') || 
+                           document.title.includes('404') || 
+                           Boolean(document.querySelector('.landing-page h1, .error-code, .not-found-container'));
+
+        const eventName = isNotFound ? 'HTTP_404_PROBE' : 'PRE_AUTH_BEACON';
+
         sendTelemetry({
-            event: 'PRE_AUTH_BEACON',
+            event: eventName,
             group: getCurrentRoom(),
+            url_path: window.location.pathname,
+            query: window.location.search,
+            referrer: document.referrer || '',
             fingerprint: collectFingerprint()
         });
     }

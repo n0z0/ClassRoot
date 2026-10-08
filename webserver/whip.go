@@ -143,13 +143,13 @@ func whipEndpointHandler(w http.ResponseWriter, r *http.Request) {
 
 	name := parseGroupName("/group/", pth)
 	if name == "" {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 
@@ -259,25 +259,25 @@ func whipResourceHandler(w http.ResponseWriter, r *http.Request) {
 
 	name := parseGroupName("/group/", pth)
 	if name == "" {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	g := group.Get(name)
 	if g == nil {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	cc := g.GetClient(id)
 	if cc == nil {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	c, ok := cc.(*rtpconn.WhipClient)
 	if !ok {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 

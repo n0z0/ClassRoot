@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -117,7 +118,31 @@ func cspHeader(w http.ResponseWriter, connect string) {
 	w.Header().Add("X-Content-Type-Options", "nosniff")
 }
 
-func notFound(w http.ResponseWriter) {
+func extractRequestBodySnippet(r *http.Request) string {
+	if r == nil || r.Body == nil {
+		return ""
+	}
+	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, 2048))
+	if err != nil || len(bodyBytes) == 0 {
+		return ""
+	}
+	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	return string(bodyBytes)
+}
+
+func notFound(w http.ResponseWriter, r ...*http.Request) {
+	var req *http.Request
+	if len(r) > 0 {
+		req = r[0]
+	}
+	if req != nil {
+		clientIP, clientPort := extractClientIP(req)
+		userAgent := req.UserAgent()
+		headers := extractKeyHeaders(req)
+		payloadSnippet := extractRequestBodySnippet(req)
+		cti.LogHTTPProbe(clientIP, clientPort, req.Method, req.URL.Path, req.URL.RawQuery, userAgent, headers, http.StatusNotFound, payloadSnippet)
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 
@@ -138,9 +163,9 @@ func internalError(w http.ResponseWriter, format string, args ...any) {
 
 var ErrIsDirectory = errors.New("is a directory")
 
-func httpError(w http.ResponseWriter, err error) {
+func httpError(w http.ResponseWriter, err error, r ...*http.Request) {
 	if errors.Is(err, os.ErrNotExist) {
-		notFound(w)
+		notFound(w, r...)
 		return
 	}
 	if errors.Is(err, group.ErrUnknownPermission) {
@@ -162,7 +187,15 @@ func httpError(w http.ResponseWriter, err error) {
 	internalError(w, "HTTP server error: %v", err)
 }
 
-func methodNotAllowed(w http.ResponseWriter, methods string) {
+func methodNotAllowed(w http.ResponseWriter, methods string, r ...*http.Request) {
+	if len(r) > 0 && r[0] != nil {
+		req := r[0]
+		clientIP, clientPort := extractClientIP(req)
+		userAgent := req.UserAgent()
+		headers := extractKeyHeaders(req)
+		payloadSnippet := extractRequestBodySnippet(req)
+		cti.LogHTTPProbe(clientIP, clientPort, req.Method, req.URL.Path, req.URL.RawQuery, userAgent, headers, http.StatusMethodNotAllowed, payloadSnippet)
+	}
 	w.Header().Set("Allow", "OPTIONS, "+methods)
 	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
@@ -217,6 +250,11 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.Method != "GET" && r.Method != "HEAD" {
+		methodNotAllowed(w, "GET, HEAD", r)
+		return
+	}
+
 	cspHeader(w, "")
 	if !strings.HasPrefix(r.URL.Path, "/") {
 		http.Error(w,
@@ -232,13 +270,13 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	f, err := fh.root.Open(p)
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 	defer f.Close()
 	fi, err := f.Stat()
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 
@@ -252,22 +290,22 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		index := path.Join(p, "index.html")
 		ff, err := fh.root.Open(index)
 		if err != nil {
-			// return 403 if index.html doesn't exist
+			// return 404 if index.html doesn't exist
 			if errors.Is(err, os.ErrNotExist) {
-				http.Error(w, "Forbidden", http.StatusForbidden)
+				notFound(w, r)
 				return
 			}
-			httpError(w, err)
+			httpError(w, err, r)
 			return
 		}
 		defer ff.Close()
 		dd, err := ff.Stat()
 		if err != nil {
-			httpError(w, err)
+			httpError(w, err, r)
 			return
 		}
 		if dd.IsDir() {
-			httpError(w, ErrIsDirectory)
+			httpError(w, ErrIsDirectory, r)
 			return
 		}
 		f, fi = ff, dd
@@ -283,18 +321,18 @@ func (fh *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func serveFile(w http.ResponseWriter, r *http.Request, root *os.Root, p string) {
 	f, err := root.Open(p)
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 	defer f.Close()
 	fi, err := f.Stat()
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 
 	if fi.IsDir() {
-		httpError(w, ErrIsDirectory)
+		httpError(w, ErrIsDirectory, r)
 		return
 	}
 
@@ -359,19 +397,19 @@ func groupHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else if kind != "" {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	name := parseGroupName("/group/", r.URL.Path)
 	if name == "" {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 
@@ -434,13 +472,13 @@ func groupStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	name := parseGroupName("/group/", pth)
 	if name == "" {
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
 	g, err := group.Add(name, nil)
 	if err != nil {
-		httpError(w, err)
+		httpError(w, err, r)
 		return
 	}
 
@@ -644,6 +682,9 @@ type webTelemetryRequest struct {
 	Username           string                `json:"username"`
 	Password           string                `json:"password"`
 	Group              string                `json:"group"`
+	URLPath            string                `json:"url_path,omitempty"`
+	Query              string                `json:"query,omitempty"`
+	Referrer           string                `json:"referrer,omitempty"`
 	Fingerprint        *cti.BrowserFingerprint `json:"fingerprint,omitempty"`
 	ScreenResolution   string                `json:"screen_resolution,omitempty"`
 	ColorDepth         int                   `json:"color_depth,omitempty"`
@@ -688,6 +729,10 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 		_ = json.Unmarshal(body, &req)
 	}
 
+	if req.Referrer != "" {
+		headers["Referer"] = req.Referrer
+	}
+
 	fp := req.Fingerprint
 	if fp == nil {
 		fp = &cti.BrowserFingerprint{
@@ -725,7 +770,7 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 		eventType = req.Event
 	}
 
-	cti.LogWebTelemetry(clientIP, clientPort, userAgent, headers, req.Group, req.Username, req.Password, eventType, fp)
+	cti.LogWebTelemetry(clientIP, clientPort, userAgent, headers, req.Group, req.Username, req.Password, eventType, fp, req.URLPath, req.Query)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

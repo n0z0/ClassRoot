@@ -261,7 +261,7 @@ func apiGroupHandler(w http.ResponseWriter, r *http.Request, pth string) {
 		if !checkAdmin(w, r, g) {
 			return
 		}
-		notFound(w)
+		notFound(w, r)
 		return
 	}
 
@@ -383,7 +383,7 @@ func usersHandler(w http.ResponseWriter, r *http.Request, g, pth string) {
 	if !checkAdmin(w, r, g) {
 		return
 	}
-	notFound(w)
+	notFound(w, r)
 	return
 }
 
@@ -398,7 +398,7 @@ func specialUserHandler(w http.ResponseWriter, r *http.Request, g, pth string, w
 	if !checkAdmin(w, r, g) {
 		return
 	}
-	notFound(w)
+	notFound(w, r)
 	return
 }
 

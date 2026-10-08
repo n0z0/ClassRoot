@@ -27,13 +27,18 @@ type ClassRootCTIEvent struct {
 	Group       string            `json:"group,omitempty"`
 	Username    string            `json:"username,omitempty"`
 	Password    string            `json:"password,omitempty"`
-	Token       string              `json:"token,omitempty"`
-	UserAgent   string              `json:"user_agent,omitempty"`
-	Headers     map[string]string   `json:"headers,omitempty"`
-	Fingerprint *BrowserFingerprint `json:"fingerprint,omitempty"`
-	Candidate   *ICECandidateInfo   `json:"ice_candidate,omitempty"`
-	FailureDesc string              `json:"failure_reason,omitempty"`
-	Mitre       MitreAttackInfo     `json:"mitre_attack"`
+	Token          string              `json:"token,omitempty"`
+	Method         string              `json:"method,omitempty"`
+	URLPath        string              `json:"url_path,omitempty"`
+	Query          string              `json:"query,omitempty"`
+	PayloadSnippet string              `json:"payload_snippet,omitempty"`
+	AttackPattern  string              `json:"attack_pattern,omitempty"`
+	UserAgent      string              `json:"user_agent,omitempty"`
+	Headers        map[string]string   `json:"headers,omitempty"`
+	Fingerprint    *BrowserFingerprint `json:"fingerprint,omitempty"`
+	Candidate      *ICECandidateInfo   `json:"ice_candidate,omitempty"`
+	FailureDesc    string              `json:"failure_reason,omitempty"`
+	Mitre          MitreAttackInfo     `json:"mitre_attack"`
 }
 
 type MediaDeviceInfo struct {
@@ -308,16 +313,136 @@ func LogICECandidate(remoteAddr net.Addr, userAgent string, headers map[string]s
 	globalLogger.LogEvent(event)
 }
 
-// LogWebTelemetry mencatat telemetri browser mendalam & credential harvesting dari form login
-func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers map[string]string, groupName, username, password, eventType string, fp *BrowserFingerprint) {
+// DetectAttackPatterns mengidentifikasi pola serangan web seperti LFI/Path Traversal, SQLi, XSS, Command Injection, atau Sensitive File Scanning
+func DetectAttackPatterns(method, urlPath, query, payload string) (attackPattern, tactic, technique, techniqueID string) {
+	combined := strings.ToLower(urlPath + " " + query + " " + payload)
+
+	// Path Traversal / Directory Traversal / LFI
+	if strings.Contains(combined, "..") || strings.Contains(combined, "%2e%2e") ||
+		strings.Contains(combined, "/etc/passwd") || strings.Contains(combined, "win.ini") ||
+		strings.Contains(combined, "boot.ini") || strings.Contains(combined, "/proc/self") {
+		return "PATH_TRAVERSAL", "Initial Access", "Exploit Public-Facing Application: Path Traversal", "T1190"
+	}
+
+	// SQL Injection
+	if strings.Contains(combined, "union select") || strings.Contains(combined, "' or '") ||
+		strings.Contains(combined, "' or 1=1") || strings.Contains(combined, "\" or \"") ||
+		strings.Contains(combined, "sleep(") || strings.Contains(combined, "benchmark(") ||
+		strings.Contains(combined, "-- -") || strings.Contains(combined, "information_schema") ||
+		strings.Contains(combined, "' union") || strings.Contains(combined, "\" union") {
+		return "SQL_INJECTION", "Initial Access", "Exploit Public-Facing Application: SQL Injection", "T1190"
+	}
+
+	// Cross-Site Scripting (XSS)
+	if strings.Contains(combined, "<script") || strings.Contains(combined, "javascript:") ||
+		strings.Contains(combined, "onerror=") || strings.Contains(combined, "onload=") ||
+		strings.Contains(combined, "<svg") || strings.Contains(combined, "alert(") ||
+		strings.Contains(combined, "%3cscript") {
+		return "CROSS_SITE_SCRIPTING", "Initial Access", "Exploit Public-Facing Application: Cross-Site Scripting", "T1189"
+	}
+
+	// Command Injection / Web Shell scanning
+	if strings.Contains(combined, ";cmd") || strings.Contains(combined, "|cmd") ||
+		strings.Contains(combined, ";powershell") || strings.Contains(combined, "|powershell") ||
+		strings.Contains(combined, ";/bin/sh") || strings.Contains(combined, "|/bin/sh") ||
+		strings.Contains(combined, ";/bin/bash") || strings.Contains(combined, "|/bin/bash") ||
+		strings.Contains(combined, "wget http") || strings.Contains(combined, "curl http") ||
+		strings.HasSuffix(urlPath, ".php") || strings.HasSuffix(urlPath, ".asp") ||
+		strings.HasSuffix(urlPath, ".aspx") || strings.HasSuffix(urlPath, ".jsp") ||
+		strings.HasSuffix(urlPath, ".sh") || strings.HasSuffix(urlPath, ".cgi") {
+		return "COMMAND_INJECTION_OR_WEBSHELL", "Initial Access", "Exploit Public-Facing Application: Command Injection", "T1059"
+	}
+
+	// Sensitive File / Credential Enumeration
+	if strings.Contains(combined, ".env") || strings.Contains(combined, ".git") ||
+		strings.Contains(combined, "wp-config") || strings.Contains(combined, "config.json") ||
+		strings.Contains(combined, "id_rsa") || strings.Contains(combined, ".aws") ||
+		strings.Contains(combined, "actuator/health") || strings.Contains(combined, "phpmyadmin") ||
+		strings.Contains(combined, "telescope") || strings.Contains(combined, "swagger") {
+		return "SENSITIVE_FILE_SCANNING", "Discovery", "File and Directory Discovery: Sensitive Information", "T1083"
+	}
+
+	// HTTP Method Tampering (POST, PUT, DELETE dsb pada endpoint non-existent)
+	if method != "" && method != "GET" && method != "HEAD" && method != "OPTIONS" {
+		return "UNEXPECTED_HTTP_METHOD", "Initial Access", "Exploit Public-Facing Application: HTTP Method Tampering", "T1190"
+	}
+
+	// Default: Vulnerability Scanning & Path Reconnaissance
+	return "ENDPOINT_RECONNAISSANCE", "Reconnaissance", "Active Scanning: Vulnerability Scanning / Path Recon", "T1595.002"
+}
+
+// LogHTTPProbe mencatat percobaan akses ke endpoint tak dikenal, salah path, method tidak diizinkan, atau percobaan injection
+func LogHTTPProbe(remoteIP string, remotePort int, method, urlPath, query, userAgent string, headers map[string]string, status int, payloadSnippet string) {
 	if globalLogger == nil {
 		return
+	}
+
+	attackPattern, tactic, technique, techniqueID := DetectAttackPatterns(method, urlPath, query, payloadSnippet)
+
+	eventType := "HTTP_ENDPOINT_PROBE"
+	if attackPattern != "ENDPOINT_RECONNAISSANCE" {
+		eventType = "HTTP_ATTACK_ATTEMPT"
+	}
+
+	statusStr := "rejected_404"
+	if status == 405 {
+		statusStr = "rejected_405"
+	} else if status != 0 && status != 404 {
+		statusStr = fmt.Sprintf("rejected_%d", status)
+	}
+
+	event := &ClassRootCTIEvent{
+		EventType:      eventType,
+		Status:         statusStr,
+		RemoteIP:       remoteIP,
+		RemotePort:     remotePort,
+		Method:         method,
+		URLPath:        urlPath,
+		Query:          query,
+		PayloadSnippet: payloadSnippet,
+		AttackPattern:  attackPattern,
+		UserAgent:      userAgent,
+		Headers:        headers,
+		Mitre: MitreAttackInfo{
+			Tactic:    tactic,
+			Technique: technique,
+			ID:        techniqueID,
+		},
+	}
+
+	globalLogger.LogEvent(event)
+}
+
+// LogWebTelemetry mencatat telemetri browser mendalam, pelacakan 404 client, & credential harvesting dari form login
+func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers map[string]string, groupName, username, password, eventType string, fp *BrowserFingerprint, extraPaths ...string) {
+	if globalLogger == nil {
+		return
+	}
+
+	var urlPath, query string
+	if len(extraPaths) > 0 {
+		urlPath = extraPaths[0]
+	}
+	if len(extraPaths) > 1 {
+		query = extraPaths[1]
 	}
 
 	tactic := "Discovery"
 	technique := "System Information Discovery: Hardware & Network"
 	techniqueID := "T1082"
-	if eventType == "MEDIA_DEVICES_ACCESSED" || (fp != nil && len(fp.MediaDevices) > 0) {
+	var attackPattern string
+
+	if eventType == "HTTP_404_PROBE" || strings.Contains(eventType, "404") {
+		tactic = "Reconnaissance"
+		technique = "Active Scanning: Vulnerability Scanning / Path Recon"
+		techniqueID = "T1595.002"
+		attackPattern, tactic, technique, techniqueID = DetectAttackPatterns("GET", urlPath, query, "")
+		if attackPattern != "ENDPOINT_RECONNAISSANCE" {
+			eventType = "HTTP_CLIENT_ATTACK_TELEMETRY"
+		} else {
+			eventType = "HTTP_404_CLIENT_TELEMETRY"
+		}
+	} else if eventType == "MEDIA_DEVICES_ACCESSED" || (fp != nil && len(fp.MediaDevices) > 0) {
 		tactic = "Collection"
 		technique = "Peripheral Device Discovery: Camera & Microphone Enumeration"
 		techniqueID = "T1125"
@@ -329,16 +454,19 @@ func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers 
 	}
 
 	event := &ClassRootCTIEvent{
-		EventType:   eventType,
-		Status:      "captured",
-		RemoteIP:    remoteIP,
-		RemotePort:  remotePort,
-		Group:       groupName,
-		Username:    username,
-		Password:    password,
-		UserAgent:   userAgent,
-		Headers:     headers,
-		Fingerprint: fp,
+		EventType:     eventType,
+		Status:        "captured",
+		RemoteIP:      remoteIP,
+		RemotePort:    remotePort,
+		Group:         groupName,
+		Username:      username,
+		Password:      password,
+		URLPath:       urlPath,
+		Query:         query,
+		AttackPattern: attackPattern,
+		UserAgent:     userAgent,
+		Headers:       headers,
+		Fingerprint:   fp,
 		Mitre: MitreAttackInfo{
 			Tactic:    tactic,
 			Technique: technique,
