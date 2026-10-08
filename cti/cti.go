@@ -191,17 +191,24 @@ func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
 	return globalLogger, nil
 }
 
-// resolveReverseDNS melakukan DNS PTR lookup dengan batas waktu singkat (non-blocking ke pipeline)
+var rdnsCache sync.Map
+
+// resolveReverseDNS melakukan DNS PTR lookup dengan in-memory deduplication cache
 func resolveReverseDNS(ipStr string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	if val, ok := rdnsCache.Load(ipStr); ok {
+		return val.(string)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
 	defer cancel()
 
 	var r net.Resolver
+	var host string
 	names, err := r.LookupAddr(ctx, ipStr)
 	if err == nil && len(names) > 0 {
-		return strings.TrimSuffix(names[0], ".")
+		host = strings.TrimSuffix(names[0], ".")
 	}
-	return ""
+	rdnsCache.Store(ipStr, host)
+	return host
 }
 
 // generateSessionID membuat correlation identifier konsisten berdasarkan IP dan tanggal UTC
