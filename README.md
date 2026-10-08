@@ -35,9 +35,16 @@ ClassRoot mencegat kandidat ini pada dua lapisan:
 
 ### 2. Room Authentication & Credential Abuse Tracking (MITRE T1110 & T1078)
 - Mendeteksi upaya brute-force kata sandi ruangan (misal ruang `it-briefing`).
-- Mencatat username, grup target, dan status otentikasi.
+- Mencatat username, password yang dimasukkan penyerang, grup target, dan status otentikasi.
 
-### 3. Integrasi Otomatis dengan CacheDB
+### 3. Client-Side Sensor & Hardware Fingerprinting (`cti-telemetry.js`)
+ClassRoot dilengkapi sensor JavaScript client-side (`static/cti-telemetry.js`) yang berjalan otomatis di browser penyerang saat membuka landing page maupun form login:
+- **Pre-Auth Recon Beacon:** Mengirim beacon pengintaian instan saat halaman dimuat (`/api/telemetry`).
+- **GPU Unmasking:** Menggunakan WebGL extension `WEBGL_debug_renderer_info` untuk mengungkap chipset grafis asli penyerang (misal `NVIDIA GeForce RTX 3070`) bahkan saat penyerang memakai VPN atau mode Incognito.
+- **Hardware & Environment Fingerprinting:** Merekam resolusi layar, color depth, logical CPU cores (`hardwareConcurrency`), RAM (`deviceMemory`), timezone sistem, bahasa preferensi OS, canvas hash, dan audio context hash.
+- **Credential Harvester:** Mencegat interaksi tombol *Connect* / login modal, merekam username dan password ke log CTI dan menyimpannya ke `cachedb`.
+
+### 4. Integrasi Otomatis dengan CacheDB
 Dapat mengirimkan IOC (*Indicators of Compromise*) secara langsung ke server `cachedb` via gRPC, memungkinkan pemblokiran atau korelasi otomatis oleh sensor lain.
 
 ---
