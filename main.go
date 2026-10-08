@@ -74,11 +74,25 @@ func main() {
 		defer ctiLogger.Close()
 	}
 
+	// Fallback lokasi groups jika ./groups/ tidak ada di working dir tetapi ada di lokasi executable
+	if group.Directory == "./groups/" || group.Directory == "./groups" {
+		if _, err := os.Stat(group.Directory); os.IsNotExist(err) {
+			if exePath, err := os.Executable(); err == nil {
+				exeDir := filepath.Dir(exePath)
+				exeGroups := filepath.Join(exeDir, "groups")
+				if _, err := os.Stat(exeGroups); err == nil {
+					group.Directory = exeGroups
+				}
+			}
+		}
+	}
+
 	// Pastikan direktori groups dan data otomatis dibuat jika belum ada
 	if err := os.MkdirAll(group.Directory, 0755); err == nil {
 		defaultGroup := filepath.Join(group.Directory, "public.json")
-		if _, err := os.Stat(defaultGroup); os.IsNotExist(err) {
-			_ = os.WriteFile(defaultGroup, []byte("{\"public\": true}\n"), 0644)
+		// Buat baru atau perbarui jika public.json lama belum memiliki wildcard-user
+		if data, err := os.ReadFile(defaultGroup); os.IsNotExist(err) || (err == nil && !strings.Contains(string(data), "wildcard-user")) {
+			_ = os.WriteFile(defaultGroup, []byte("{\"public\": true, \"wildcard-user\": {\"password\": {\"type\": \"wildcard\"}, \"permissions\": \"present\"}}\n"), 0644)
 		}
 		briefingGroup := filepath.Join(group.Directory, "it-briefing.json")
 		if _, err := os.Stat(briefingGroup); os.IsNotExist(err) {

@@ -8,6 +8,7 @@ on:
       - "go.mod"
       - "go.sum"
       - "static/**"
+      - "groups/**"
     tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
@@ -75,7 +76,7 @@ jobs:
             -ldflags "-s -w" \
             -o "build/${NAME}/classrootctl.exe" ./classrootctl
           cp "build/${NAME}/classroot.exe" "dist/classroot_windows_amd64.exe"
-          cp -r static "build/${NAME}/"
+          cp -r static groups "build/${NAME}/"
           cp README.md LICENSE install.ps1 "build/${NAME}/"
           (cd build && zip -qr "../dist/${NAME}.zip" "${NAME}")
 
@@ -93,7 +94,7 @@ jobs:
             -ldflags "-s -w" \
             -o "build/${NAME}/classrootctl" ./classrootctl
           cp "build/${NAME}/classroot" "dist/classroot_linux_amd64"
-          cp -r static "build/${NAME}/"
+          cp -r static groups "build/${NAME}/"
           cp README.md LICENSE install.sh "build/${NAME}/"
           tar -czf "dist/${NAME}.tar.gz" -C build "${NAME}"
           (cd dist && sha256sum * > checksums.txt)

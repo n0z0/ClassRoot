@@ -1,0 +1,9 @@
+{
+  "public": true,
+  "wildcard-user": {
+    "password": {
+      "type": "wildcard"
+    },
+    "permissions": "present"
+  }
+}

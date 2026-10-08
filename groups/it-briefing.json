@@ -1,0 +1,9 @@
+{
+  "public": true,
+  "users": {
+    "admin": {
+      "password": "admin123",
+      "permissions": "op"
+    }
+  }
+}
