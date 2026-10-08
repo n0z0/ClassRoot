@@ -103,13 +103,13 @@ func main() {
 	// Pastikan direktori groups dan data otomatis dibuat jika belum ada
 	if err := os.MkdirAll(group.Directory, 0755); err == nil {
 		defaultGroup := filepath.Join(group.Directory, "public.json")
-		// Buat baru atau perbarui jika public.json lama belum memiliki wildcard-user
-		if data, err := os.ReadFile(defaultGroup); os.IsNotExist(err) || (err == nil && !strings.Contains(string(data), "wildcard-user")) {
-			_ = os.WriteFile(defaultGroup, []byte("{\"public\": true, \"wildcard-user\": {\"password\": {\"type\": \"wildcard\"}, \"permissions\": \"present\"}}\n"), 0644)
+		// Buat baru atau perbarui jika public.json lama belum memiliki wildcard-user atau allow-recording
+		if data, err := os.ReadFile(defaultGroup); os.IsNotExist(err) || (err == nil && (!strings.Contains(string(data), "wildcard-user") || !strings.Contains(string(data), "allow-recording"))) {
+			_ = os.WriteFile(defaultGroup, []byte("{\"public\": true, \"allow-recording\": true, \"wildcard-user\": {\"password\": {\"type\": \"wildcard\"}, \"permissions\": \"present\"}}\n"), 0644)
 		}
 		briefingGroup := filepath.Join(group.Directory, "it-briefing.json")
-		if _, err := os.Stat(briefingGroup); os.IsNotExist(err) {
-			_ = os.WriteFile(briefingGroup, []byte("{\"public\": true, \"users\": {\"admin\": {\"password\": \"admin123\", \"permissions\": \"op\"}}}\n"), 0644)
+		if data, err := os.ReadFile(briefingGroup); os.IsNotExist(err) || (err == nil && !strings.Contains(string(data), "allow-recording")) {
+			_ = os.WriteFile(briefingGroup, []byte("{\"public\": true, \"allow-recording\": true, \"users\": {\"admin\": {\"password\": \"admin123\", \"permissions\": \"op\"}}}\n"), 0644)
 		}
 	}
 	_ = os.MkdirAll(group.DataDirectory, 0755)

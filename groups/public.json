@@ -1,5 +1,6 @@
 {
   "public": true,
+  "allow-recording": true,
   "wildcard-user": {
     "password": {
       "type": "wildcard"

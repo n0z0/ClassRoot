@@ -1,5 +1,6 @@
 {
   "public": true,
+  "allow-recording": true,
   "users": {
     "admin": {
       "password": "admin123",
