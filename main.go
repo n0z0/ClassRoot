@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -217,6 +218,8 @@ func main() {
 		log.Fatalf("Server: %v", err)
 	}
 
+	printNetworkInterfaces(httpAddr, webserver.Insecure)
+
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
 
@@ -242,6 +245,79 @@ func main() {
 			return
 		}
 	}
+}
+
+func printNetworkInterfaces(address string, insecure bool) {
+	scheme := "https"
+	if insecure {
+		scheme = "http"
+	}
+
+	_, port, err := net.SplitHostPort(address)
+	if err != nil {
+		port = address
+		if strings.HasPrefix(port, ":") {
+			port = port[1:]
+		}
+	}
+	if port == "" {
+		if insecure {
+			port = "80"
+		} else {
+			port = "443"
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("==================================================================")
+	fmt.Printf("  ClassRoot WebRTC Media & CTI Server v%s Berjalan\n", appVersion)
+	fmt.Println("==================================================================")
+	fmt.Println("  [Akses Localhost]:")
+	fmt.Printf("    * %s://localhost:%s/\n", scheme, port)
+	fmt.Printf("    * %s://127.0.0.1:%s/\n", scheme, port)
+	fmt.Println()
+	fmt.Println("  [Akses Jaringan - Semua Network Interfaces / IP Address]:")
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		fmt.Printf("    [!] Gagal mendeteksi network interfaces: %v\n", err)
+	} else {
+		foundAny := false
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+				if ip == nil || ip.IsLoopback() {
+					continue
+				}
+				if ipv4 := ip.To4(); ipv4 != nil {
+					foundAny = true
+					fmt.Printf("    * %s (IP: %s):\n", iface.Name, ipv4.String())
+					fmt.Printf("        URL Portal : %s://%s:%s/\n", scheme, ipv4.String(), port)
+					fmt.Printf("        Ruang Rapat: %s://%s:%s/group/public/\n", scheme, ipv4.String(), port)
+				}
+			}
+		}
+		if !foundAny {
+			fmt.Println("    (Tidak ada interface IPv4 non-loopback yang aktif)")
+		}
+	}
+	fmt.Println("==================================================================")
+	fmt.Println("  Grup Default: /group/public/  |  Rekaman: /recordings/")
+	fmt.Println("==================================================================")
+	fmt.Println()
 }
 
 func relayTest() {

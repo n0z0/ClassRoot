@@ -1,17 +1,28 @@
-/* mainpage.css - ClassRoot Modern Enterprise Meeting Portal Styling */
+/* mainpage.css - ClassRoot Clean Enterprise Portal Styling (De-AI Crafted Design) */
 :root {
-    --bg-main: #090d16;
-    --surface: #111827;
-    --surface-card: #182235;
-    --accent: #0ea5e9;
-    --accent-hover: #0284c7;
-    --accent-glow: rgba(14, 165, 233, 0.25);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --border: #1e293b;
-    --border-hover: #334155;
-    --error: #ef4444;
-    --success: #10b981;
+    --bg-canvas: #0d1117;
+    --bg-surface: #161b22;
+    --bg-surface-elevated: #21262d;
+    --bg-input: #0b0f14;
+    
+    --border-subtle: #21262d;
+    --border-default: #30363d;
+    --border-active: #58a6ff;
+    
+    --text-primary: #f0f6fc;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    
+    --btn-primary-bg: #238636;
+    --btn-primary-hover: #2ea043;
+    --btn-primary-border: rgba(240, 246, 252, 0.1);
+    
+    --accent-blue: #388bfd;
+    --danger: #f85149;
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
 }
 
 * {
@@ -21,32 +32,32 @@
 }
 
 body {
-    background-color: var(--bg-main);
+    background-color: var(--bg-canvas);
     color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 20px;
-    background-image: 
-        radial-gradient(circle at 15% 15%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 85%, rgba(56, 189, 248, 0.05) 0%, transparent 40%);
+    padding: 24px 16px;
+    -webkit-font-smoothing: antialiased;
 }
 
+/* Main Container Card */
 .home {
-    max-width: 680px;
+    max-width: 580px;
     width: 100%;
-    margin: 40px auto auto auto;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 36px 32px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(12px);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin: 48px auto auto auto;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6), 0 1px 2px rgba(1, 4, 9, 0.4);
 }
 
+/* Header & Brand */
 .brand-header {
     text-align: center;
     margin-bottom: 28px;
@@ -55,17 +66,16 @@ body {
 .brand-badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    background: rgba(14, 165, 233, 0.12);
-    border: 1px solid rgba(14, 165, 233, 0.3);
-    color: var(--accent);
-    padding: 4px 12px;
+    gap: 8px;
+    background: rgba(56, 139, 253, 0.1);
+    border: 1px solid rgba(56, 139, 253, 0.3);
+    color: var(--accent-blue);
+    padding: 3px 10px;
     border-radius: 9999px;
     font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
 }
 
 .brand-badge::before {
@@ -74,150 +84,143 @@ body {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background-color: var(--accent);
-    box-shadow: 0 0 8px var(--accent);
+    background-color: #3fb950;
 }
 
 .navbar-brand {
-    font-size: 28px;
-    font-weight: 800;
+    font-size: 24px;
+    font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
     margin-bottom: 6px;
-    background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
 }
 
 .brand-subtitle {
-    font-size: 14px;
+    font-size: 13px;
     color: var(--text-secondary);
 }
 
-/* Form Styles */
+/* Form Controls */
 #groupform {
-    margin-bottom: 24px;
-}
-
-.form-group-wrapper {
-    display: flex;
-    gap: 10px;
-    margin-top: 8px;
+    margin-bottom: 20px;
 }
 
 label[for="group"] {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+}
+
+.form-group-wrapper {
+    display: flex;
+    gap: 8px;
 }
 
 #group {
     flex: 1;
-    background: #0b1120;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: 9px 12px;
     color: var(--text-primary);
-    font-size: 15px;
+    font-size: 14px;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#group::placeholder {
+    color: var(--text-muted);
 }
 
 #group:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.2);
 }
 
 #submitbutton {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    background: var(--btn-primary-bg);
     color: #ffffff;
-    border: none;
-    border-radius: 10px;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 700;
+    border: 1px solid var(--btn-primary-border);
+    border-radius: var(--radius-md);
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+    transition: background-color 0.15s ease;
     white-space: nowrap;
 }
 
 #submitbutton:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.45);
+    background-color: var(--btn-primary-hover);
 }
 
 #submitbutton:active {
-    transform: translateY(0);
+    background-color: #238636;
 }
 
 #errormessage {
-    color: var(--error);
-    font-size: 13px;
-    font-weight: 600;
-    min-height: 20px;
+    color: var(--danger);
+    font-size: 12px;
+    font-weight: 500;
+    min-height: 18px;
     margin-bottom: 12px;
 }
 
 /* Public Groups Section */
 .groups {
     margin-top: 24px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--border-subtle);
     padding-top: 20px;
 }
 
 .groups h2 {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 
 #public-groups-table {
     width: 100%;
     border-collapse: separate;
-    border-spacing: 0 8px;
+    border-spacing: 0 6px;
 }
 
 #public-groups-table tr {
-    background: var(--surface-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    transition: all 0.2s ease;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 #public-groups-table tr:hover {
-    border-color: var(--border-hover);
-    transform: translateX(3px);
+    background: #282e37;
 }
 
 #public-groups-table td {
-    padding: 12px 14px;
-    font-size: 14px;
+    padding: 10px 14px;
+    font-size: 13px;
 }
 
 #public-groups-table td:first-child {
-    border-top-left-radius: 10px;
-    border-bottom-left-radius: 10px;
+    border-top-left-radius: var(--radius-sm);
+    border-bottom-left-radius: var(--radius-sm);
 }
 
 #public-groups-table td:last-child {
-    border-top-right-radius: 10px;
-    border-bottom-right-radius: 10px;
+    border-top-right-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
     text-align: right;
     color: var(--text-secondary);
     font-size: 12px;
 }
 
 #public-groups-table tr a {
-    color: var(--accent);
-    font-weight: 700;
+    color: #58a6ff;
+    font-weight: 600;
     text-decoration: none;
     display: inline-flex;
     align-items: center;
@@ -225,7 +228,6 @@ label[for="group"] {
 }
 
 #public-groups-table tr a:hover {
-    color: #38bdf8;
     text-decoration: underline;
 }
 
@@ -233,12 +235,12 @@ label[for="group"] {
     display: none;
 }
 
-/* Footer */
+/* Footer Signature */
 .signature {
     text-align: center;
-    padding: 24px 0 10px 0;
-    font-size: 13px;
-    color: var(--text-secondary);
+    padding: 24px 0 8px 0;
+    font-size: 12px;
+    color: var(--text-muted);
 }
 
 .signature a {
@@ -247,31 +249,32 @@ label[for="group"] {
 }
 
 .signature a:hover {
-    color: var(--accent);
+    color: var(--text-primary);
+    text-decoration: underline;
 }
 
-/* Mobile Responsive */
-@media (max-width: 640px) {
+/* Responsive */
+@media (max-width: 600px) {
     body {
         padding: 12px;
     }
     .home {
-        margin: 16px auto;
-        padding: 24px 18px;
-        border-radius: 14px;
+        margin: 20px auto;
+        padding: 20px 16px;
+        border-radius: var(--radius-md);
     }
     .navbar-brand {
-        font-size: 24px;
+        font-size: 20px;
     }
     .form-group-wrapper {
         flex-direction: column;
     }
     #submitbutton {
         width: 100%;
-        padding: 14px;
+        padding: 11px;
     }
     #public-groups-table td {
-        padding: 10px;
-        font-size: 13px;
+        padding: 8px 10px;
+        font-size: 12px;
     }
 }

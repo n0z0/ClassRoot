@@ -1,3 +1,25 @@
+/* 404.css - Clean Enterprise Error Page (De-AI Crafted Design) */
+:root {
+  --bg-canvas: #0d1117;
+  --bg-surface: #161b22;
+  --border-default: #30363d;
+  --text-primary: #f0f6fc;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent-blue: #388bfd;
+  --btn-bg: #21262d;
+  --btn-border: #30363d;
+  --btn-hover: #30363d;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
   display: flex;
@@ -5,79 +27,70 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 20px;
-  background: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #0f172a 100%);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: #f8fafc;
-  box-sizing: border-box;
+  padding: 24px 16px;
+  background-color: var(--bg-canvas);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
 .wrapper {
-  max-width: 640px;
+  max-width: 520px;
   width: 100%; 
   margin: 0 auto;
 }
 
 .landing-page {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 25px rgba(99, 102, 241, 0.15);
-  border-radius: 20px;
-  padding: 48px 32px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 40px 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  animation: fadeIn 0.4s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
 }
 
 .logo {
-  font-size: 4.5rem;
-  color: #f59e0b;
+  font-size: 2.75rem;
+  color: #d29922;
   margin-bottom: 16px;
-  filter: drop-shadow(0 0 20px rgba(245, 158, 11, 0.3));
 }
 
 .error-badge {
   display: inline-block;
-  padding: 4px 14px;
+  padding: 2px 10px;
   border-radius: 9999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  margin-bottom: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(248, 81, 73, 0.1);
+  color: #ff7b72;
+  border: 1px solid rgba(248, 81, 73, 0.3);
+  margin-bottom: 14px;
 }
 
 h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0 0 12px 0;
-  color: #f8fafc;
-  letter-spacing: -0.02em;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
 }
 
 p {
-  font-size: 1rem;
+  font-size: 13px;
   line-height: 1.6;
-  color: #94a3b8;
-  max-width: 440px;
-  margin: 0 0 32px 0;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin: 0 0 24px 0;
 }
 
 .actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -87,37 +100,36 @@ p {
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  border-radius: 12px;
-  padding: 12px 28px;
-  font-size: 1rem;
+  border-radius: var(--radius-md);
+  padding: 8px 18px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--btn-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--btn-border);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   user-select: none;
 }
 
 .home-link:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.45);
-  background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+  background-color: var(--btn-hover);
+  border-color: #8b949e;
 }
 
 .home-link:active {
-  transform: translateY(0);
+  background-color: #161b22;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 560px) {
   .landing-page {
-    padding: 36px 20px;
+    padding: 28px 20px;
   }
   h1 {
-    font-size: 1.6rem;
+    font-size: 18px;
   }
   .logo {
-    font-size: 3.5rem;
+    font-size: 2.25rem;
   }
 }
