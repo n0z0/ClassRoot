@@ -1013,7 +1013,7 @@ func (desc *Description) userExists(username string) bool {
 // usernames might lead to security vulnaribilities.
 // For now, we just do the minimal validation that avoids path traversal.
 func validUsername(username string) bool {
-	return username == "" || validGroupName(username)
+	return username != "" && validGroupName(username)
 }
 
 func (desc *Description) GetPermission(groupname string, creds ClientCredentials) (string, []string, error) {
@@ -1054,6 +1054,10 @@ func (desc *Description) GetPermission(groupname string, creds ClientCredentials
 		perms = ps.Permissions(desc)
 	} else {
 		return "", nil, errors.New("neither username nor token provided")
+	}
+
+	if strings.TrimSpace(username) == "" {
+		return "", nil, ErrUsernameRequired
 	}
 
 	if !validUsername(username) {

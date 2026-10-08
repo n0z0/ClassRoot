@@ -316,6 +316,11 @@ function setChangePassword(username) {
  */
 async function join() {
     let username = getInputElement('username').value.trim();
+    if(!token && !username) {
+        displayError('Username wajib diisi');
+        getInputElement('username').focus();
+        return;
+    }
     let credentials;
     if(token) {
         pwAuth = false;
@@ -3882,6 +3887,13 @@ document.getElementById('loginform').onsubmit = async function(e) {
     let form = this;
     if(!(form instanceof HTMLFormElement))
         throw new Error('Bad type for loginform');
+
+    let usernameInput = getInputElement('username');
+    if(!token && (!usernameInput.value || !usernameInput.value.trim())) {
+        displayError('Username wajib diisi');
+        usernameInput.focus();
+        return;
+    }
 
     setVisibility('passwordform', true);
 
