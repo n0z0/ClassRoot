@@ -1,6 +1,9 @@
 package cti
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -16,17 +19,36 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ClassRootCTIEvent mencatat data telemetri intelijen dari interaksi WebRTC
+// ReconProfileInfo menyimpan korelasi intelijen L4 dari synwatcher via cacheDB
+type ReconProfileInfo struct {
+	SYNFingerprintHash string `json:"syn_hash,omitempty"`
+	RiskScore          string `json:"risk_score,omitempty"`
+	Severity           string `json:"severity,omitempty"`
+	TargetService      string `json:"target_service,omitempty"`
+	IntentCategory     string `json:"intent_category,omitempty"`
+	ScanVelocity       string `json:"scan_velocity,omitempty"`
+	EstimatedOS        string `json:"estimated_os,omitempty"`
+	ScannerTool        string `json:"scanner_tool,omitempty"`
+	ScanHits           string `json:"scan_hits,omitempty"`
+	LastScan           string `json:"last_scan,omitempty"`
+}
+
+// ClassRootCTIEvent mencatat data telemetri intelijen dari interaksi Web & WebRTC
 type ClassRootCTIEvent struct {
-	Timestamp   string            `json:"timestamp"` // ISO 8601 UTC
-	SensorID    string            `json:"sensor_id"`
-	EventType   string            `json:"event_type"` // WEBRTC_ICE_CANDIDATE_LEAK, ROOM_AUTH_ATTEMPT, ROOM_JOIN_SUCCESS
-	Status      string            `json:"status,omitempty"` // success, failed
-	RemoteIP    string            `json:"remote_ip"`
-	RemotePort  int               `json:"remote_port,omitempty"`
-	Group       string            `json:"group,omitempty"`
-	Username    string            `json:"username,omitempty"`
-	Password    string            `json:"password,omitempty"`
+	Timestamp      string              `json:"timestamp"` // ISO 8601 UTC
+	SensorID       string              `json:"sensor_id"`
+	SessionID      string              `json:"session_id,omitempty"` // Correlation ID
+	EventType      string              `json:"event_type"`           // WEBRTC_ICE_CANDIDATE_LEAK, ROOM_AUTH_ATTEMPT, ROOM_JOIN_SUCCESS, HTTP_ATTACK_ATTEMPT, dll.
+	Status         string              `json:"status,omitempty"`     // success, failed, captured, rejected_404
+	ThreatScore    int                 `json:"threat_score,omitempty"`
+	Severity       string              `json:"severity,omitempty"`        // INFORMATIONAL, LOW, MEDIUM, HIGH, CRITICAL
+	KillChainPhase string              `json:"kill_chain_phase,omitempty"` // Reconnaissance, Initial Access, Discovery, Collection, Credential Access
+	RemoteIP       string              `json:"remote_ip"`
+	RemotePort     int                 `json:"remote_port,omitempty"`
+	ReverseDNS     string              `json:"reverse_dns,omitempty"` // Hostname hasil PTR lookup via Goroutine
+	Group          string              `json:"group,omitempty"`
+	Username       string              `json:"username,omitempty"`
+	Password       string              `json:"password,omitempty"`
 	Token          string              `json:"token,omitempty"`
 	Method         string              `json:"method,omitempty"`
 	URLPath        string              `json:"url_path,omitempty"`
@@ -37,6 +59,7 @@ type ClassRootCTIEvent struct {
 	Headers        map[string]string   `json:"headers,omitempty"`
 	Fingerprint    *BrowserFingerprint `json:"fingerprint,omitempty"`
 	Candidate      *ICECandidateInfo   `json:"ice_candidate,omitempty"`
+	ReconProfile   *ReconProfileInfo   `json:"recon_profile,omitempty"`
 	FailureDesc    string              `json:"failure_reason,omitempty"`
 	Mitre          MitreAttackInfo     `json:"mitre_attack"`
 }
@@ -101,7 +124,6 @@ type Logger struct {
 }
 
 var globalLogger *Logger
-var once sync.Once
 
 // Init menginisialisasi CTI Logger dan koneksi opsional ke cacheDB
 func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
@@ -126,7 +148,7 @@ func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
 	logger := &Logger{
 		file:      f,
 		sensorID:  sensorID,
-		eventChan: make(chan *ClassRootCTIEvent, 2048),
+		eventChan: make(chan *ClassRootCTIEvent, 4096),
 		quit:      make(chan struct{}),
 	}
 
@@ -167,6 +189,145 @@ func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
 
 	globalLogger = logger
 	return globalLogger, nil
+}
+
+// resolveReverseDNS melakukan DNS PTR lookup dengan batas waktu singkat (non-blocking ke pipeline)
+func resolveReverseDNS(ipStr string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+
+	var r net.Resolver
+	names, err := r.LookupAddr(ctx, ipStr)
+	if err == nil && len(names) > 0 {
+		return strings.TrimSuffix(names[0], ".")
+	}
+	return ""
+}
+
+// generateSessionID membuat correlation identifier konsisten berdasarkan IP dan tanggal UTC
+func generateSessionID(ip string) string {
+	h := sha256.New()
+	h.Write([]byte(ip + ":" + time.Now().UTC().Format("2006-01-02")))
+	return hex.EncodeToString(h.Sum(nil))[:16]
+}
+
+// evaluateThreatScore mengevaluasi risk score komposit & severity event CTI
+func evaluateThreatScore(evt *ClassRootCTIEvent) {
+	if evt.ThreatScore == 0 {
+		switch evt.AttackPattern {
+		case "SQL_INJECTION", "COMMAND_INJECTION_OR_WEBSHELL":
+			evt.ThreatScore = 95
+			evt.Severity = "CRITICAL"
+			evt.KillChainPhase = "Exploitation"
+		case "PATH_TRAVERSAL":
+			evt.ThreatScore = 88
+			evt.Severity = "HIGH"
+			evt.KillChainPhase = "Exploitation"
+		case "CROSS_SITE_SCRIPTING", "SENSITIVE_FILE_SCANNING":
+			evt.ThreatScore = 80
+			evt.Severity = "HIGH"
+			evt.KillChainPhase = "Discovery"
+		case "UNEXPECTED_HTTP_METHOD":
+			evt.ThreatScore = 60
+			evt.Severity = "MEDIUM"
+			evt.KillChainPhase = "Initial Access"
+		default:
+			if evt.EventType == "HTTP_ATTACK_ATTEMPT" {
+				evt.ThreatScore = 75
+				evt.Severity = "HIGH"
+				evt.KillChainPhase = "Initial Access"
+			} else if evt.EventType == "ROOM_AUTH_FAILED" {
+				evt.ThreatScore = 65
+				evt.Severity = "MEDIUM"
+				evt.KillChainPhase = "Credential Access"
+			} else if evt.EventType == "WEBRTC_ICE_CANDIDATE_LEAK" {
+				evt.ThreatScore = 50
+				evt.Severity = "MEDIUM"
+				evt.KillChainPhase = "Discovery"
+			} else if evt.EventType == "ROOM_JOIN_SUCCESS" {
+				evt.ThreatScore = 40
+				evt.Severity = "LOW"
+				evt.KillChainPhase = "Initial Access"
+			} else {
+				evt.ThreatScore = 30
+				evt.Severity = "LOW"
+				if evt.KillChainPhase == "" {
+					evt.KillChainPhase = "Reconnaissance"
+				}
+			}
+		}
+	}
+
+	// Korelasi Unified Kill Chain: jika penyerang memiliki riwayat L4 Recon scan di cachedb
+	if evt.ReconProfile != nil && evt.ReconProfile.RiskScore != "" {
+		if l4Score, err := strconv.Atoi(evt.ReconProfile.RiskScore); err == nil {
+			if l4Score > evt.ThreatScore {
+				evt.ThreatScore = l4Score
+			}
+		}
+		// Attacker yang sudah scan L4 dan sekarang probe exploit L7 adalah ancaman kritis
+		if evt.AttackPattern != "" && evt.AttackPattern != "ENDPOINT_RECONNAISSANCE" {
+			evt.ThreatScore = 98
+			evt.Severity = "CRITICAL"
+			evt.KillChainPhase = "Exploitation"
+		}
+	}
+
+	if evt.Severity == "" {
+		if evt.ThreatScore >= 90 {
+			evt.Severity = "CRITICAL"
+		} else if evt.ThreatScore >= 70 {
+			evt.Severity = "HIGH"
+		} else if evt.ThreatScore >= 40 {
+			evt.Severity = "MEDIUM"
+		} else {
+			evt.Severity = "LOW"
+		}
+	}
+}
+
+// asyncEnrichAndLog mengeksekusi korelasi L4 dari cacheDB dan rDNS menggunakan Goroutine asinkron
+func (l *Logger) asyncEnrichAndLog(event *ClassRootCTIEvent) {
+	if l == nil || event == nil {
+		return
+	}
+
+	// Goroutine terisolasi: zero latency impact pada loop request/koneksi utama
+	go func(evt *ClassRootCTIEvent) {
+		if evt.SessionID == "" && evt.RemoteIP != "" {
+			evt.SessionID = generateSessionID(evt.RemoteIP)
+		}
+
+		// Asynchronous Reverse DNS lookup jika bukan loopback
+		if evt.RemoteIP != "" && evt.RemoteIP != "127.0.0.1" && evt.RemoteIP != "::1" && evt.ReverseDNS == "" {
+			evt.ReverseDNS = resolveReverseDNS(evt.RemoteIP)
+		}
+
+		// Korelasi L4 Reconnaissance Profile dari CacheDB
+		if l.cacheClient != nil && evt.RemoteIP != "" {
+			if dossier, found, err := cdc.GetActor(evt.RemoteIP, l.cacheClient); err == nil && found && dossier != nil {
+				evt.ReconProfile = &ReconProfileInfo{
+					SYNFingerprintHash: dossier.SynHash,
+					RiskScore:          dossier.RiskScore,
+					Severity:           dossier.Severity,
+					TargetService:      dossier.TargetService,
+					IntentCategory:     dossier.IntentCategory,
+					ScanVelocity:       dossier.ScanVelocity,
+					EstimatedOS:        dossier.EstimatedOs,
+					ScannerTool:        dossier.ScannerTool,
+					ScanHits:           dossier.ScanHits,
+					LastScan:           dossier.LastActivity,
+				}
+				if evt.AttackPattern != "" && evt.AttackPattern != "ENDPOINT_RECONNAISSANCE" {
+					log.Printf("[SOC ALERT] Korelasi Terdeteksi: IP %s (L4 Tool: %s, SYN Hash: %s) mencoba exploit L7: %s pada %s",
+						evt.RemoteIP, evt.ReconProfile.ScannerTool, evt.ReconProfile.SYNFingerprintHash, evt.AttackPattern, evt.URLPath)
+				}
+			}
+		}
+
+		evaluateThreatScore(evt)
+		l.LogEvent(evt)
+	}(event)
 }
 
 func (l *Logger) processEvent(event *ClassRootCTIEvent) {
@@ -210,14 +371,22 @@ func (l *Logger) processEvent(event *ClassRootCTIEvent) {
 		if event.URLPath != "" {
 			_ = cdc.Set(fmt.Sprintf("actor:probe:%s:%s", event.RemoteIP, event.URLPath), string(data), l.cacheClient)
 		}
+		if event.ReverseDNS != "" {
+			_ = cdc.Set(fmt.Sprintf("actor:rdns:%s", event.RemoteIP), event.ReverseDNS, l.cacheClient)
+		}
+		if event.AttackPattern != "" && event.AttackPattern != "ENDPOINT_RECONNAISSANCE" {
+			_ = cdc.Set(fmt.Sprintf("actor:risk:%s", event.RemoteIP), strconv.Itoa(event.ThreatScore), l.cacheClient)
+			_ = cdc.Set(fmt.Sprintf("actor:severity:%s", event.RemoteIP), event.Severity, l.cacheClient)
+			_ = cdc.Set(fmt.Sprintf("actor:intent:%s", event.RemoteIP), "EXPLOITATION_WEB:"+event.AttackPattern, l.cacheClient)
+		}
 	}
 
 	if event.Method != "" || event.URLPath != "" {
-		log.Printf("[CTI PROBE] [%s] %s %s %s from IP: %s (Pattern: %s, Status: %s)",
-			event.EventType, event.Mitre.ID, event.Method, event.URLPath, event.RemoteIP, event.AttackPattern, event.Status)
+		log.Printf("[CTI PROBE] [%s] %s %s %s from IP: %s (Pattern: %s, Score: %d [%s], Status: %s)",
+			event.EventType, event.Mitre.ID, event.Method, event.URLPath, event.RemoteIP, event.AttackPattern, event.ThreatScore, event.Severity, event.Status)
 	} else {
-		log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s)",
-			event.EventType, event.Mitre.ID, event.RemoteIP, event.Username, event.Group)
+		log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s, Score: %d [%s])",
+			event.EventType, event.Mitre.ID, event.RemoteIP, event.Username, event.Group, event.ThreatScore, event.Severity)
 	}
 }
 
@@ -285,7 +454,7 @@ func LogRoomAuth(remoteAddr net.Addr, userAgent string, headers map[string]strin
 		},
 	}
 
-	globalLogger.LogEvent(event)
+	globalLogger.asyncEnrichAndLog(event)
 }
 
 // LogICECandidate mencatat kandidat alamat IP (WebRTC IP Leak)
@@ -318,7 +487,7 @@ func LogICECandidate(remoteAddr net.Addr, userAgent string, headers map[string]s
 		},
 	}
 
-	globalLogger.LogEvent(event)
+	globalLogger.asyncEnrichAndLog(event)
 }
 
 // DetectAttackPatterns mengidentifikasi pola serangan web seperti LFI/Path Traversal, SQLi, XSS, Command Injection, atau Sensitive File Scanning
@@ -370,7 +539,7 @@ func DetectAttackPatterns(method, urlPath, query, payload string) (attackPattern
 		return "SENSITIVE_FILE_SCANNING", "Discovery", "File and Directory Discovery: Sensitive Information", "T1083"
 	}
 
-	// HTTP Method Tampering (POST, PUT, DELETE dsb pada endpoint non-existent)
+	// HTTP Method Tampering
 	if method != "" && method != "GET" && method != "HEAD" && method != "OPTIONS" {
 		return "UNEXPECTED_HTTP_METHOD", "Initial Access", "Exploit Public-Facing Application: HTTP Method Tampering", "T1190"
 	}
@@ -418,7 +587,7 @@ func LogHTTPProbe(remoteIP string, remotePort int, method, urlPath, query, userA
 		},
 	}
 
-	globalLogger.LogEvent(event)
+	globalLogger.asyncEnrichAndLog(event)
 }
 
 // LogWebTelemetry mencatat telemetri browser mendalam, pelacakan 404 client, & credential harvesting dari form login
@@ -482,7 +651,7 @@ func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers 
 		},
 	}
 
-	globalLogger.LogEvent(event)
+	globalLogger.asyncEnrichAndLog(event)
 }
 
 func splitAddr(addr net.Addr) (string, int) {
@@ -499,7 +668,6 @@ func splitAddr(addr net.Addr) (string, int) {
 }
 
 // parseCandidate mem-parsing string kandidat WebRTC SDP
-// Contoh: candidate:842163049 1 udp 1677729535 192.168.1.15 54321 typ host generation 0
 func parseCandidate(c string) *ICECandidateInfo {
 	info := &ICECandidateInfo{
 		Raw: c,
