@@ -66,7 +66,14 @@ go build -o classrootctl.exe ./classrootctl
 
 ## 🛠️ Cara Penggunaan
 
-### Menjalankan Server Decoy HTTP (Testing / Lokal)
+### Menjalankan Server Decoy HTTPS (Default - Auto Self-Signed Cert)
+Secara default, ClassRoot berjalan di mode **HTTPS**. Jika sertifikat TLS belum ada di folder `data/`, ClassRoot akan **secara otomatis men-generate sertifikat self-signed** dengan Subject Alternative Names (SAN) mencakup `localhost`, `127.0.0.1`, dan seluruh IP LAN lokal Anda:
+```bash
+classroot -http :8443
+```
+Buka di browser perangkat lain: `https://<ip-komputer>:8443/group/public/`. Klik *Advanced -> Proceed*, dan seluruh fitur WebRTC (**Share Screen**, Kamera, Mic) langsung aktif!
+
+### Menjalankan Server Decoy HTTP Biasa (Insecure)
 ```bash
 classroot -insecure -http :8443 -ctilog classroot_cti.jsonl
 ```

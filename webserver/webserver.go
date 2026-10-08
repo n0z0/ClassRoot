@@ -58,6 +58,9 @@ func Serve(address string, dataDir string) error {
 		IdleTimeout:       120 * time.Second,
 	}
 	if !Insecure {
+		if err := EnsureTLSCertificates(dataDir); err != nil {
+			log.Printf("[TLS] Peringatan: gagal memastikan sertifikat TLS: %v", err)
+		}
 		certificate := cert.New(
 			filepath.Join(dataDir, "cert.pem"),
 			filepath.Join(dataDir, "key.pem"),

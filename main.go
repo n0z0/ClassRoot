@@ -87,6 +87,19 @@ func main() {
 		}
 	}
 
+	// Fallback lokasi data jika ./data/ tidak ada di working dir tetapi ada di lokasi executable
+	if group.DataDirectory == "./data/" || group.DataDirectory == "./data" {
+		if _, err := os.Stat(group.DataDirectory); os.IsNotExist(err) {
+			if exePath, err := os.Executable(); err == nil {
+				exeDir := filepath.Dir(exePath)
+				exeData := filepath.Join(exeDir, "data")
+				if _, err := os.Stat(exeData); err == nil {
+					group.DataDirectory = exeData
+				}
+			}
+		}
+	}
+
 	// Pastikan direktori groups dan data otomatis dibuat jika belum ada
 	if err := os.MkdirAll(group.Directory, 0755); err == nil {
 		defaultGroup := filepath.Join(group.Directory, "public.json")

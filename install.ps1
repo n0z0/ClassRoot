@@ -114,5 +114,5 @@ Write-Host " Sukses! ClassRoot Decoy berhasil dipasang." -ForegroundColor Green
 Write-Host " Versi: $TargetTag" -ForegroundColor Green
 Write-Host " Lokasi: $InstalledExe" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host "Buka terminal baru dan jalankan:"
-Write-Host '   classroot -insecure -http :8443' -ForegroundColor Yellow
+Write-Host "Buka terminal baru dan jalankan (HTTPS bawaan dengan auto-cert):"
+Write-Host '   classroot -http :8443' -ForegroundColor Yellow
