@@ -36,20 +36,36 @@ type ClassRootCTIEvent struct {
 	Mitre       MitreAttackInfo     `json:"mitre_attack"`
 }
 
+type MediaDeviceInfo struct {
+	Kind     string `json:"kind"`                // audioinput, videoinput, audiooutput
+	Label    string `json:"label"`               // e.g. "Logitech HD Pro Webcam C920", "Realtek Audio"
+	DeviceID string `json:"device_id,omitempty"` // Device ID / hash
+}
+
+type NetworkInfo struct {
+	ConnectionType string  `json:"connection_type,omitempty"` // wifi, cellular, ethernet
+	EffectiveType  string  `json:"effective_type,omitempty"`  // 4g, 3g
+	DownlinkMbps   float64 `json:"downlink_mbps,omitempty"`
+	RTTMs          int     `json:"rtt_ms,omitempty"`
+}
+
 type BrowserFingerprint struct {
-	ScreenResolution string  `json:"screen_resolution,omitempty"` // Contoh: 1920x1080
-	ColorDepth       int     `json:"color_depth,omitempty"`
-	PixelRatio       float64 `json:"pixel_ratio,omitempty"`
-	Platform         string  `json:"platform,omitempty"`          // Contoh: Win32, Linux x86_64
-	Languages        string  `json:"languages,omitempty"`         // Contoh: id-ID,en-US
-	Timezone         string  `json:"timezone,omitempty"`          // Contoh: Asia/Jakarta
-	TimezoneOffset   int     `json:"timezone_offset,omitempty"`
-	HardwareCores    int     `json:"hardware_cores,omitempty"`
-	DeviceMemory     float64 `json:"device_memory,omitempty"`     // dalam GB
-	GPUVendor        string  `json:"gpu_vendor,omitempty"`
-	GPURenderer      string  `json:"gpu_renderer,omitempty"`      // Contoh: NVIDIA GeForce RTX 4070 Laptop GPU
-	CanvasHash       string  `json:"canvas_hash,omitempty"`
-	AudioHash        string  `json:"audio_hash,omitempty"`
+	ScreenResolution   string            `json:"screen_resolution,omitempty"` // Contoh: 1920x1080
+	ColorDepth         int               `json:"color_depth,omitempty"`
+	PixelRatio         float64           `json:"pixel_ratio,omitempty"`
+	Platform           string            `json:"platform,omitempty"`          // Contoh: Win32, Linux x86_64
+	Languages          string            `json:"languages,omitempty"`         // Contoh: id-ID,en-US
+	Timezone           string            `json:"timezone,omitempty"`          // Contoh: Asia/Jakarta
+	TimezoneOffset     int               `json:"timezone_offset,omitempty"`
+	HardwareCores      int               `json:"hardware_cores,omitempty"`
+	DeviceMemory       float64           `json:"device_memory,omitempty"`     // dalam GB
+	GPUVendor          string            `json:"gpu_vendor,omitempty"`
+	GPURenderer        string            `json:"gpu_renderer,omitempty"`      // Contoh: NVIDIA GeForce RTX 4070 Laptop GPU
+	CanvasHash         string            `json:"canvas_hash,omitempty"`
+	AudioHash          string            `json:"audio_hash,omitempty"`
+	MediaDevices       []MediaDeviceInfo `json:"media_devices,omitempty"`     // Kamera & Microphone terdeteksi
+	NetworkInfo        *NetworkInfo      `json:"network_info,omitempty"`      // WiFi/Cellular & Latensi
+	BluetoothSupported bool              `json:"bluetooth_supported,omitempty"`
 }
 
 type ICECandidateInfo struct {
@@ -298,10 +314,16 @@ func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers 
 		return
 	}
 
-	tactic := "Credential Access"
-	technique := "Browser & Hardware Fingerprinting"
-	techniqueID := "T1056"
+	tactic := "Discovery"
+	technique := "System Information Discovery: Hardware & Network"
+	techniqueID := "T1082"
+	if eventType == "MEDIA_DEVICES_ACCESSED" || (fp != nil && len(fp.MediaDevices) > 0) {
+		tactic = "Collection"
+		technique = "Peripheral Device Discovery: Camera & Microphone Enumeration"
+		techniqueID = "T1125"
+	}
 	if username != "" || password != "" {
+		tactic = "Credential Access"
 		technique = "Input Capture: Credentials Harvested"
 		techniqueID = "T1056.001"
 	}

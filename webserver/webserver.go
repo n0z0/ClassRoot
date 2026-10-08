@@ -640,24 +640,27 @@ func extractKeyHeaders(r *http.Request) map[string]string {
 }
 
 type webTelemetryRequest struct {
-	Event            string                  `json:"event"`
-	Username         string                  `json:"username"`
-	Password         string                  `json:"password"`
-	Group            string                  `json:"group"`
-	Fingerprint      *cti.BrowserFingerprint `json:"fingerprint,omitempty"`
-	ScreenResolution string                  `json:"screen_resolution,omitempty"`
-	ColorDepth       int                     `json:"color_depth,omitempty"`
-	PixelRatio       float64                 `json:"pixel_ratio,omitempty"`
-	Platform         string                  `json:"platform,omitempty"`
-	Languages        string                  `json:"languages,omitempty"`
-	Timezone         string                  `json:"timezone,omitempty"`
-	TimezoneOffset   int                     `json:"timezone_offset,omitempty"`
-	HardwareCores    int                     `json:"hardware_cores,omitempty"`
-	DeviceMemory     float64                 `json:"device_memory,omitempty"`
-	GPUVendor        string                  `json:"gpu_vendor,omitempty"`
-	GPURenderer      string                  `json:"gpu_renderer,omitempty"`
-	CanvasHash       string                  `json:"canvas_hash,omitempty"`
-	AudioHash        string                  `json:"audio_hash,omitempty"`
+	Event              string                `json:"event"`
+	Username           string                `json:"username"`
+	Password           string                `json:"password"`
+	Group              string                `json:"group"`
+	Fingerprint        *cti.BrowserFingerprint `json:"fingerprint,omitempty"`
+	ScreenResolution   string                `json:"screen_resolution,omitempty"`
+	ColorDepth         int                   `json:"color_depth,omitempty"`
+	PixelRatio         float64               `json:"pixel_ratio,omitempty"`
+	Platform           string                `json:"platform,omitempty"`
+	Languages          string                `json:"languages,omitempty"`
+	Timezone           string                `json:"timezone,omitempty"`
+	TimezoneOffset     int                   `json:"timezone_offset,omitempty"`
+	HardwareCores      int                   `json:"hardware_cores,omitempty"`
+	DeviceMemory       float64               `json:"device_memory,omitempty"`
+	GPUVendor          string                `json:"gpu_vendor,omitempty"`
+	GPURenderer        string                `json:"gpu_renderer,omitempty"`
+	CanvasHash         string                `json:"canvas_hash,omitempty"`
+	AudioHash          string                `json:"audio_hash,omitempty"`
+	MediaDevices       []cti.MediaDeviceInfo `json:"media_devices,omitempty"`
+	NetworkInfo        *cti.NetworkInfo      `json:"network_info,omitempty"`
+	BluetoothSupported bool                  `json:"bluetooth_supported,omitempty"`
 }
 
 func telemetryHandler(w http.ResponseWriter, r *http.Request) {
@@ -688,19 +691,32 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 	fp := req.Fingerprint
 	if fp == nil {
 		fp = &cti.BrowserFingerprint{
-			ScreenResolution: req.ScreenResolution,
-			ColorDepth:       req.ColorDepth,
-			PixelRatio:       req.PixelRatio,
-			Platform:         req.Platform,
-			Languages:        req.Languages,
-			Timezone:         req.Timezone,
-			TimezoneOffset:   req.TimezoneOffset,
-			HardwareCores:    req.HardwareCores,
-			DeviceMemory:     req.DeviceMemory,
-			GPUVendor:        req.GPUVendor,
-			GPURenderer:      req.GPURenderer,
-			CanvasHash:       req.CanvasHash,
-			AudioHash:        req.AudioHash,
+			ScreenResolution:   req.ScreenResolution,
+			ColorDepth:         req.ColorDepth,
+			PixelRatio:         req.PixelRatio,
+			Platform:           req.Platform,
+			Languages:          req.Languages,
+			Timezone:           req.Timezone,
+			TimezoneOffset:     req.TimezoneOffset,
+			HardwareCores:      req.HardwareCores,
+			DeviceMemory:       req.DeviceMemory,
+			GPUVendor:          req.GPUVendor,
+			GPURenderer:        req.GPURenderer,
+			CanvasHash:         req.CanvasHash,
+			AudioHash:          req.AudioHash,
+			MediaDevices:       req.MediaDevices,
+			NetworkInfo:        req.NetworkInfo,
+			BluetoothSupported: req.BluetoothSupported,
+		}
+	} else {
+		if len(fp.MediaDevices) == 0 && len(req.MediaDevices) > 0 {
+			fp.MediaDevices = req.MediaDevices
+		}
+		if fp.NetworkInfo == nil && req.NetworkInfo != nil {
+			fp.NetworkInfo = req.NetworkInfo
+		}
+		if !fp.BluetoothSupported && req.BluetoothSupported {
+			fp.BluetoothSupported = req.BluetoothSupported
 		}
 	}
 

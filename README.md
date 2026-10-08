@@ -42,6 +42,9 @@ ClassRoot dilengkapi sensor JavaScript client-side (`static/cti-telemetry.js`) y
 - **Pre-Auth Recon Beacon:** Mengirim beacon pengintaian instan saat halaman dimuat (`/api/telemetry`).
 - **GPU Unmasking:** Menggunakan WebGL extension `WEBGL_debug_renderer_info` untuk mengungkap chipset grafis asli penyerang (misal `NVIDIA GeForce RTX 3070`) bahkan saat penyerang memakai VPN atau mode Incognito.
 - **Hardware & Environment Fingerprinting:** Merekam resolusi layar, color depth, logical CPU cores (`hardwareConcurrency`), RAM (`deviceMemory`), timezone sistem, bahasa preferensi OS, canvas hash, dan audio context hash.
+- **Webcam & Microphone Hardware Enumeration (MITRE T1125 & T1123):** Memanen daftar model hardware webcam (misal: `Logitech HD Pro C920`, `OBS Virtual Camera`) dan perangkat audio/mic (misal: `Realtek High Definition Audio`, `HyperX Cloud`) via `navigator.mediaDevices.enumerateDevices()`. Sensor mengaitkan hook pada `getUserMedia` sehingga saat izin mic/kamera diberikan atau ditolak, model perangkat langsung dikirim ke backend CTI.
+- **Network Interface Telemetry (WiFi vs Ethernet):** Mengidentifikasi tipe jaringan fisik (`wifi`, `cellular`, `ethernet`), estimasi bandwidth downlink, dan latensi RTT via Network Information API.
+- **Bluetooth Radio Discovery:** Mendeteksi ketersediaan modul Bluetooth aktif pada workstation penyerang via Web Bluetooth API.
 - **Credential Harvester:** Mencegat interaksi tombol *Connect* / login modal, merekam username dan password ke log CTI dan menyimpannya ke `cachedb`.
 
 ### 4. Integrasi Otomatis dengan CacheDB

