@@ -56,6 +56,9 @@ type Logger struct {
 	sensorID    string
 	cacheClient cachepb.CacheClient
 	grpcConn    *grpc.ClientConn
+	eventChan   chan *ClassRootCTIEvent
+	quit        chan struct{}
+	wg          sync.WaitGroup
 }
 
 var globalLogger *Logger
@@ -82,8 +85,10 @@ func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
 	}
 
 	logger := &Logger{
-		file:     f,
-		sensorID: sensorID,
+		file:      f,
+		sensorID:  sensorID,
+		eventChan: make(chan *ClassRootCTIEvent, 2048),
+		quit:      make(chan struct{}),
 	}
 
 	if cacheDBAddr != "" {
@@ -97,29 +102,35 @@ func Init(logPath, sensorID, cacheDBAddr string) (*Logger, error) {
 		}
 	}
 
+	// Worker goroutine untuk penulisan file dan push ke CacheDB secara asinkron
+	logger.wg.Add(1)
+	go func() {
+		defer logger.wg.Done()
+		for {
+			select {
+			case event, ok := <-logger.eventChan:
+				if !ok {
+					return
+				}
+				logger.processEvent(event)
+			case <-logger.quit:
+				for {
+					select {
+					case event := <-logger.eventChan:
+						logger.processEvent(event)
+					default:
+						return
+					}
+				}
+			}
+		}
+	}()
+
 	globalLogger = logger
 	return globalLogger, nil
 }
 
-func (l *Logger) Close() {
-	if l != nil {
-		if l.file != nil {
-			l.file.Close()
-		}
-		if l.grpcConn != nil {
-			l.grpcConn.Close()
-		}
-	}
-}
-
-func Get() *Logger {
-	return globalLogger
-}
-
-func (l *Logger) LogEvent(event *ClassRootCTIEvent) {
-	if l == nil {
-		return
-	}
+func (l *Logger) processEvent(event *ClassRootCTIEvent) {
 	if event.SensorID == "" {
 		event.SensorID = l.sensorID
 	}
@@ -150,6 +161,34 @@ func (l *Logger) LogEvent(event *ClassRootCTIEvent) {
 
 	log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s)",
 		event.EventType, event.Mitre.ID, event.RemoteIP, event.Username, event.Group)
+}
+
+func (l *Logger) Close() {
+	if l != nil {
+		close(l.quit)
+		l.wg.Wait()
+		if l.file != nil {
+			l.file.Close()
+		}
+		if l.grpcConn != nil {
+			l.grpcConn.Close()
+		}
+	}
+}
+
+func Get() *Logger {
+	return globalLogger
+}
+
+func (l *Logger) LogEvent(event *ClassRootCTIEvent) {
+	if l == nil {
+		return
+	}
+	select {
+	case l.eventChan <- event:
+	default:
+		go l.processEvent(event)
+	}
 }
 
 // LogRoomAuth mencatat percobaan join atau otentikasi group/room
