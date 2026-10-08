@@ -207,10 +207,18 @@ func (l *Logger) processEvent(event *ClassRootCTIEvent) {
 		if event.Fingerprint != nil && event.Fingerprint.GPURenderer != "" {
 			_ = cdc.Set(fmt.Sprintf("actor:gpu:%s", event.RemoteIP), event.Fingerprint.GPURenderer, l.cacheClient)
 		}
+		if event.URLPath != "" {
+			_ = cdc.Set(fmt.Sprintf("actor:probe:%s:%s", event.RemoteIP, event.URLPath), string(data), l.cacheClient)
+		}
 	}
 
-	log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s)",
-		event.EventType, event.Mitre.ID, event.RemoteIP, event.Username, event.Group)
+	if event.Method != "" || event.URLPath != "" {
+		log.Printf("[CTI PROBE] [%s] %s %s %s from IP: %s (Pattern: %s, Status: %s)",
+			event.EventType, event.Mitre.ID, event.Method, event.URLPath, event.RemoteIP, event.AttackPattern, event.Status)
+	} else {
+		log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s)",
+			event.EventType, event.Mitre.ID, event.RemoteIP, event.Username, event.Group)
+	}
 }
 
 func (l *Logger) Close() {
