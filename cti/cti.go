@@ -27,11 +27,29 @@ type ClassRootCTIEvent struct {
 	Group       string            `json:"group,omitempty"`
 	Username    string            `json:"username,omitempty"`
 	Password    string            `json:"password,omitempty"`
-	Token       string            `json:"token,omitempty"`
-	UserAgent   string            `json:"user_agent,omitempty"`
-	Candidate   *ICECandidateInfo `json:"ice_candidate,omitempty"`
-	FailureDesc string            `json:"failure_reason,omitempty"`
-	Mitre       MitreAttackInfo   `json:"mitre_attack"`
+	Token       string              `json:"token,omitempty"`
+	UserAgent   string              `json:"user_agent,omitempty"`
+	Headers     map[string]string   `json:"headers,omitempty"`
+	Fingerprint *BrowserFingerprint `json:"fingerprint,omitempty"`
+	Candidate   *ICECandidateInfo   `json:"ice_candidate,omitempty"`
+	FailureDesc string              `json:"failure_reason,omitempty"`
+	Mitre       MitreAttackInfo     `json:"mitre_attack"`
+}
+
+type BrowserFingerprint struct {
+	ScreenResolution string  `json:"screen_resolution,omitempty"` // Contoh: 1920x1080
+	ColorDepth       int     `json:"color_depth,omitempty"`
+	PixelRatio       float64 `json:"pixel_ratio,omitempty"`
+	Platform         string  `json:"platform,omitempty"`          // Contoh: Win32, Linux x86_64
+	Languages        string  `json:"languages,omitempty"`         // Contoh: id-ID,en-US
+	Timezone         string  `json:"timezone,omitempty"`          // Contoh: Asia/Jakarta
+	TimezoneOffset   int     `json:"timezone_offset,omitempty"`
+	HardwareCores    int     `json:"hardware_cores,omitempty"`
+	DeviceMemory     float64 `json:"device_memory,omitempty"`     // dalam GB
+	GPUVendor        string  `json:"gpu_vendor,omitempty"`
+	GPURenderer      string  `json:"gpu_renderer,omitempty"`      // Contoh: NVIDIA GeForce RTX 4070 Laptop GPU
+	CanvasHash       string  `json:"canvas_hash,omitempty"`
+	AudioHash        string  `json:"audio_hash,omitempty"`
 }
 
 type ICECandidateInfo struct {
@@ -157,6 +175,17 @@ func (l *Logger) processEvent(event *ClassRootCTIEvent) {
 			key = fmt.Sprintf("webrtc:local_ip:%s", event.Candidate.IP)
 		}
 		_ = cdc.Set(key, string(data), l.cacheClient)
+
+		// Simpan korelasi ancaman kredensial & hardware
+		if event.Username != "" {
+			_ = cdc.Set(fmt.Sprintf("actor:classroot:user:%s", event.RemoteIP), event.Username, l.cacheClient)
+		}
+		if event.Password != "" {
+			_ = cdc.Set(fmt.Sprintf("actor:classroot:pass:%s", event.RemoteIP), event.Password, l.cacheClient)
+		}
+		if event.Fingerprint != nil && event.Fingerprint.GPURenderer != "" {
+			_ = cdc.Set(fmt.Sprintf("actor:gpu:%s", event.RemoteIP), event.Fingerprint.GPURenderer, l.cacheClient)
+		}
 	}
 
 	log.Printf("[CTI ALERT] [%s] %s IP: %s (User: %s, Room: %s)",
@@ -191,8 +220,8 @@ func (l *Logger) LogEvent(event *ClassRootCTIEvent) {
 	}
 }
 
-// LogRoomAuth mencatat percobaan join atau otentikasi group/room
-func LogRoomAuth(remoteAddr net.Addr, groupName string, username, password, tokenStr, status, reason string) {
+// LogRoomAuth mencatat percobaan join atau otentikasi group/room beserta identitas client & agent
+func LogRoomAuth(remoteAddr net.Addr, userAgent string, headers map[string]string, groupName string, username, password, tokenStr, status, reason string) {
 	if globalLogger == nil {
 		return
 	}
@@ -217,6 +246,8 @@ func LogRoomAuth(remoteAddr net.Addr, groupName string, username, password, toke
 		Username:    username,
 		Password:    password,
 		Token:       tokenStr,
+		UserAgent:   userAgent,
+		Headers:     headers,
 		FailureDesc: reason,
 		Mitre: MitreAttackInfo{
 			Tactic:    "Initial Access",
@@ -229,7 +260,7 @@ func LogRoomAuth(remoteAddr net.Addr, groupName string, username, password, toke
 }
 
 // LogICECandidate mencatat kandidat alamat IP (WebRTC IP Leak)
-func LogICECandidate(remoteAddr net.Addr, groupName, username, candStr string) {
+func LogICECandidate(remoteAddr net.Addr, userAgent string, headers map[string]string, groupName, username, candStr string) {
 	if globalLogger == nil || candStr == "" {
 		return
 	}
@@ -248,7 +279,44 @@ func LogICECandidate(remoteAddr net.Addr, groupName, username, candStr string) {
 		RemotePort: port,
 		Group:      groupName,
 		Username:   username,
+		UserAgent:  userAgent,
+		Headers:    headers,
 		Candidate:  info,
+		Mitre: MitreAttackInfo{
+			Tactic:    tactic,
+			Technique: technique,
+			ID:        techniqueID,
+		},
+	}
+
+	globalLogger.LogEvent(event)
+}
+
+// LogWebTelemetry mencatat telemetri browser mendalam & credential harvesting dari form login
+func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers map[string]string, groupName, username, password, eventType string, fp *BrowserFingerprint) {
+	if globalLogger == nil {
+		return
+	}
+
+	tactic := "Credential Access"
+	technique := "Browser & Hardware Fingerprinting"
+	techniqueID := "T1056"
+	if username != "" || password != "" {
+		technique = "Input Capture: Credentials Harvested"
+		techniqueID = "T1056.001"
+	}
+
+	event := &ClassRootCTIEvent{
+		EventType:   eventType,
+		Status:      "captured",
+		RemoteIP:    remoteIP,
+		RemotePort:  remotePort,
+		Group:       groupName,
+		Username:    username,
+		Password:    password,
+		UserAgent:   userAgent,
+		Headers:     headers,
+		Fingerprint: fp,
 		Mitre: MitreAttackInfo{
 			Tactic:    tactic,
 			Technique: technique,

@@ -64,6 +64,8 @@ func isWSNormalError(err error) bool {
 type webClient struct {
 	group       *group.Group
 	addr        net.Addr
+	userAgent   string
+	headers     map[string]string
 	id          string
 	username    string
 	permissions []string
@@ -614,7 +616,7 @@ func gotOffer(c *webClient, id, label string, sdp string, replace string) error 
 			if c.group != nil {
 				gName = c.group.Name()
 			}
-			cti.LogICECandidate(c.addr, gName, c.username, cand)
+			cti.LogICECandidate(c.addr, c.userAgent, c.headers, gName, c.username, cand)
 		}
 	}
 
@@ -846,7 +848,7 @@ func readMessage(conn *websocket.Conn, m *clientMessage) error {
 const maxWSMessageSize = 1024 * 1024
 const protocolVersion = "2"
 
-func StartClient(conn *websocket.Conn, addr net.Addr) (err error) {
+func StartClient(conn *websocket.Conn, addr net.Addr, userAgent string, headers map[string]string) (err error) {
 	var m clientMessage
 
 	conn.SetReadLimit(maxWSMessageSize)
@@ -879,10 +881,12 @@ func StartClient(conn *websocket.Conn, addr net.Addr) (err error) {
 	}
 
 	c := &webClient{
-		addr:    addr,
-		id:      m.Id,
-		actions: unbounded.New[any](),
-		done:    make(chan struct{}),
+		addr:      addr,
+		userAgent: userAgent,
+		headers:   headers,
+		id:        m.Id,
+		actions:   unbounded.New[any](),
+		done:      make(chan struct{}),
 	}
 
 	defer close(c.done)
@@ -1453,7 +1457,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 			if username == "" && m.Username != nil {
 				username = *m.Username
 			}
-			cti.LogRoomAuth(c.addr, m.Group, username, m.Password, m.Token, "failed", s)
+			cti.LogRoomAuth(c.addr, c.userAgent, c.headers, m.Group, username, m.Password, m.Token, "failed", s)
 			return c.write(clientMessage{
 				Type:     "joined",
 				Kind:     "fail",
@@ -1480,7 +1484,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if username == "" && m.Username != nil {
 			username = *m.Username
 		}
-		cti.LogRoomAuth(c.addr, m.Group, username, m.Password, m.Token, "success", "")
+		cti.LogRoomAuth(c.addr, c.userAgent, c.headers, m.Group, username, m.Password, m.Token, "success", "")
 	case "request":
 		requested, err := parseRequested(m.Request)
 		if err != nil {
@@ -1582,7 +1586,7 @@ func handleClientMessage(c *webClient, m clientMessage) error {
 		if c.group != nil {
 			gName = c.group.Name()
 		}
-		cti.LogICECandidate(c.addr, gName, c.username, m.Candidate.Candidate)
+		cti.LogICECandidate(c.addr, c.userAgent, c.headers, gName, c.username, m.Candidate.Candidate)
 		err := gotICE(c, m.Candidate, m.Id)
 		if err != nil {
 			log.Printf("ICE: %v", err)

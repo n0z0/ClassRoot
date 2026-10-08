@@ -16,12 +16,14 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 
 	"github.com/jech/cert"
+	"github.com/n0z0/ClassRoot/cti"
 	"github.com/n0z0/ClassRoot/diskwriter"
 	"github.com/n0z0/ClassRoot/group"
 	"github.com/n0z0/ClassRoot/rtpconn"
@@ -51,6 +53,8 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/public-groups.json", publicHandler)
 	http.HandleFunc("/galene-api/", apiHandler)
+	http.HandleFunc("/api/telemetry", telemetryHandler)
+	http.HandleFunc("/cti/telemetry", telemetryHandler)
 
 	s := &http.Server{
 		Addr:              address,
@@ -572,6 +576,9 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userAgent := r.UserAgent()
+	headers := extractKeyHeaders(r)
+
 	var addr net.Addr
 	tcpaddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
 	if err != nil {
@@ -581,11 +588,132 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		err := rtpconn.StartClient(conn, addr)
+		err := rtpconn.StartClient(conn, addr, userAgent, headers)
 		if err != nil {
 			log.Printf("client: %v", err)
 		}
 	}()
+}
+
+func extractClientIP(r *http.Request) (string, int) {
+	ipStr := r.Header.Get("CF-Connecting-IP")
+	if ipStr == "" {
+		ipStr = r.Header.Get("X-Real-IP")
+	}
+	if ipStr == "" {
+		xff := r.Header.Get("X-Forwarded-For")
+		if xff != "" {
+			parts := strings.Split(xff, ",")
+			ipStr = strings.TrimSpace(parts[0])
+		}
+	}
+
+	var port int
+	remoteHost, remotePortStr, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		p, _ := strconv.Atoi(remotePortStr)
+		port = p
+		if ipStr == "" {
+			ipStr = remoteHost
+		}
+	} else if ipStr == "" {
+		ipStr = r.RemoteAddr
+	}
+
+	return ipStr, port
+}
+
+func extractKeyHeaders(r *http.Request) map[string]string {
+	headers := make(map[string]string)
+	keys := []string{
+		"User-Agent", "Accept-Language", "Sec-Ch-Ua", "Sec-Ch-Ua-Platform",
+		"Sec-Ch-Ua-Mobile", "Dnt", "Upgrade-Insecure-Requests",
+		"CF-Connecting-IP", "X-Forwarded-For", "X-Real-IP",
+	}
+	for _, k := range keys {
+		val := r.Header.Get(k)
+		if val != "" {
+			headers[k] = val
+		}
+	}
+	return headers
+}
+
+type webTelemetryRequest struct {
+	Event            string                  `json:"event"`
+	Username         string                  `json:"username"`
+	Password         string                  `json:"password"`
+	Group            string                  `json:"group"`
+	Fingerprint      *cti.BrowserFingerprint `json:"fingerprint,omitempty"`
+	ScreenResolution string                  `json:"screen_resolution,omitempty"`
+	ColorDepth       int                     `json:"color_depth,omitempty"`
+	PixelRatio       float64                 `json:"pixel_ratio,omitempty"`
+	Platform         string                  `json:"platform,omitempty"`
+	Languages        string                  `json:"languages,omitempty"`
+	Timezone         string                  `json:"timezone,omitempty"`
+	TimezoneOffset   int                     `json:"timezone_offset,omitempty"`
+	HardwareCores    int                     `json:"hardware_cores,omitempty"`
+	DeviceMemory     float64                 `json:"device_memory,omitempty"`
+	GPUVendor        string                  `json:"gpu_vendor,omitempty"`
+	GPURenderer      string                  `json:"gpu_renderer,omitempty"`
+	CanvasHash       string                  `json:"canvas_hash,omitempty"`
+	AudioHash        string                  `json:"audio_hash,omitempty"`
+}
+
+func telemetryHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	clientIP, clientPort := extractClientIP(r)
+	userAgent := r.UserAgent()
+	headers := extractKeyHeaders(r)
+
+	var req webTelemetryRequest
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1024*1024))
+	if err == nil && len(body) > 0 {
+		_ = json.Unmarshal(body, &req)
+	}
+
+	fp := req.Fingerprint
+	if fp == nil {
+		fp = &cti.BrowserFingerprint{
+			ScreenResolution: req.ScreenResolution,
+			ColorDepth:       req.ColorDepth,
+			PixelRatio:       req.PixelRatio,
+			Platform:         req.Platform,
+			Languages:        req.Languages,
+			Timezone:         req.Timezone,
+			TimezoneOffset:   req.TimezoneOffset,
+			HardwareCores:    req.HardwareCores,
+			DeviceMemory:     req.DeviceMemory,
+			GPUVendor:        req.GPUVendor,
+			GPURenderer:      req.GPURenderer,
+			CanvasHash:       req.CanvasHash,
+			AudioHash:        req.AudioHash,
+		}
+	}
+
+	eventType := "WEB_TELEMETRY_CAPTURED"
+	if req.Event != "" {
+		eventType = req.Event
+	}
+
+	cti.LogWebTelemetry(clientIP, clientPort, userAgent, headers, req.Group, req.Username, req.Password, eventType, fp)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 func recordingsHandler(w http.ResponseWriter, r *http.Request) {
