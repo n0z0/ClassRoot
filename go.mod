@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/jech/cert v0.0.0-20240301122532-f491cf43a77d
 	github.com/jech/samplebuilder v0.0.0-20241027120643-76c654ae55e1
+	github.com/n0z0/cachedb v0.1.13
 	github.com/pion/ice/v4 v4.4.7
 	github.com/pion/interceptor v0.1.49
 	github.com/pion/rtcp v1.2.19
@@ -18,13 +19,11 @@ require (
 	golang.org/x/crypto v0.57.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
+	google.golang.org/grpc v1.76.0
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/coocood/freecache v1.2.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/n0z0/cachedb v0.1.7 // indirect
 	github.com/pion/datachannel v1.6.3 // indirect
 	github.com/pion/dtls/v3 v3.1.10 // indirect
 	github.com/pion/logging v0.2.4 // indirect
@@ -39,8 +38,5 @@ require (
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251103181224-f26f9409b101 // indirect
-	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )
-
-replace github.com/n0z0/cachedb => ../cachedb
