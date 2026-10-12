@@ -14,7 +14,7 @@ ClassRoot memadukan fungsionalitas ruang pertemuan WebRTC sungguhan dengan mesin
 
 Dalam ekosistem pertahanan berlapis `n0z0`:
 - **`synwatcher`**: Mengawasi probe port jaringan level rendah (SYN scanning, port sweeping).
-- **`scp`**: Mendeteksi penyusup yang mencoba login SSH / mentransfer berkas ilegal.
+- **`scpd`**: Mendeteksi penyusup yang mencoba login SSH / mentransfer berkas ilegal.
 - **`lemes`**: Menyediakan Honeybeacon & Lure HTTP/HTML canary untuk melacak pembukaan dokumen intelijen palsu.
 - **`ClassRoot`**: Memancing pelaku yang mencari layanan komunikasi internal (WebRTC/Zoom-like meeting) dan **membongkar topologi jaringan privat (LAN IP) penyerang** melalui WebRTC ICE Candidate Leakage.
 - **`cachedb`**: Pusat agregasi memori berbasis gRPC berkinerja tinggi yang menerima indikator ancaman secara real-time.
