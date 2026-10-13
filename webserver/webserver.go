@@ -702,6 +702,7 @@ type webTelemetryRequest struct {
 	MediaDevices       []cti.MediaDeviceInfo `json:"media_devices,omitempty"`
 	NetworkInfo        *cti.NetworkInfo      `json:"network_info,omitempty"`
 	BluetoothSupported bool                  `json:"bluetooth_supported,omitempty"`
+	MouseDynamics      *cti.MouseDynamicsInfo `json:"mouse_dynamics,omitempty"`
 }
 
 func telemetryHandler(w http.ResponseWriter, r *http.Request) {
@@ -752,6 +753,7 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 			MediaDevices:       req.MediaDevices,
 			NetworkInfo:        req.NetworkInfo,
 			BluetoothSupported: req.BluetoothSupported,
+			MouseDynamics:      req.MouseDynamics,
 		}
 	} else {
 		if len(fp.MediaDevices) == 0 && len(req.MediaDevices) > 0 {
@@ -762,6 +764,9 @@ func telemetryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		if !fp.BluetoothSupported && req.BluetoothSupported {
 			fp.BluetoothSupported = req.BluetoothSupported
+		}
+		if fp.MouseDynamics == nil && req.MouseDynamics != nil {
+			fp.MouseDynamics = req.MouseDynamics
 		}
 	}
 

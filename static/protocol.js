@@ -330,15 +330,18 @@ ServerConnection.prototype.connect = function(url) {
             sc.error(new Error('Koneksi timeout: server tidak merespon lebih dari 150 detik'));
             return;
         }
-        if(sc.version && d >= 15000)
+        if(sc.version && d >= 5000) {
+            sc.lastPingTimestamp = performance.now();
             sc.send({type: 'ping'});
-    }, 10000);
+        }
+    }, 5000);
 
     // Kirim keepalive instan ketika tab kembali aktif dari background
     if(typeof document !== 'undefined') {
         document.addEventListener('visibilitychange', () => {
             if(!document.hidden && sc.socket && sc.socket.readyState === WebSocket.OPEN) {
                 try {
+                    sc.lastPingTimestamp = performance.now();
                     sc.send({type: 'ping'});
                 } catch(e) {}
             }
@@ -528,7 +531,11 @@ ServerConnection.prototype.connect = function(url) {
             });
             break;
         case 'pong':
-            /* nothing */
+            if(sc.lastPingTimestamp) {
+                sc.rtt = Math.round(performance.now() - sc.lastPingTimestamp);
+                if(sc.onrtt)
+                    sc.onrtt.call(sc, sc.rtt);
+            }
             break;
         default:
             console.warn('Unexpected server message', m.type);

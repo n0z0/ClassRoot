@@ -451,6 +451,7 @@ function gotClose(code, reason) {
     closeSafariStream();
     let hadSession = wasRoomConnected;
     setConnected(false);
+    updateSignalIndicator(null);
 
     if(hadSession) {
         let debug = formatDisconnectDebug(code, reason);
@@ -2276,6 +2277,20 @@ function changeUser(id, userinfo) {
  */
 function setUserStatus(id, elt, userinfo) {
     elt.textContent = userinfo.username ? userinfo.username : '(anon)';
+
+    // Sinkronisasi status kehadiran pengguna (Hijau: Aktif, Kuning: Away, Merah: Inactive/Pindah Tab)
+    elt.classList.remove('user-status-away', 'user-status-inactive');
+    let presence = (userinfo.data && userinfo.data.presence) || 'active';
+    if(presence === 'away') {
+        elt.classList.add('user-status-away');
+        elt.title = (userinfo.username || '') + ' (Away / Tidak Ada Aktivitas)';
+    } else if(presence === 'inactive') {
+        elt.classList.add('user-status-inactive');
+        elt.title = (userinfo.username || '') + ' (Pindah Tab / Window Tertutup)';
+    } else {
+        elt.title = (userinfo.username || '') + ' (Aktif)';
+    }
+
     if(userinfo.data.raisehand)
         elt.classList.add('user-status-raisehand');
     else
@@ -2460,6 +2475,10 @@ async function gotJoined(kind, group, perms, status, data, error, message) {
                           serverConnection.username
         );
         openSafariStream();
+        if(typeof window !== 'undefined' && window.ClassRootPresence && window.ClassRootPresence.getPresence) {
+            let p = window.ClassRootPresence.getPresence();
+            this.userAction('setdata', this.id, {'presence': p});
+        }
         if(kind === 'change')
             return;
         break;
@@ -4127,6 +4146,9 @@ async function serverConnect() {
         serverConnection.close();
     serverConnection = new ServerConnection();
     serverConnection.onconnected = gotConnected;
+    serverConnection.onrtt = function(rtt) {
+        updateSignalIndicator(rtt);
+    };
     serverConnection.onerror = function(e) {
         console.error(e);
         displayError(e);
@@ -4203,3 +4225,49 @@ async function start() {
 }
 
 start();
+
+/**
+ * Memperbarui indikator status sinyal dan latensi koneksi (RTT) pada top bar.
+ * @param {number|null} rtt - Round trip time dalam milidetik.
+ */
+function updateSignalIndicator(rtt) {
+    let btn = document.getElementById('signalbutton');
+    let label = document.getElementById('signal-label');
+    if(!btn || !label) return;
+
+    btn.classList.remove('signal-level-0', 'signal-level-1', 'signal-level-2', 'signal-level-3', 'signal-level-4');
+
+    if(rtt === null || rtt === undefined || rtt < 0) {
+        btn.classList.add('signal-level-0');
+        label.textContent = '-- ms';
+        btn.title = 'Kualitas Koneksi: Menghubungkan / Tidak Tersedia';
+        return;
+    }
+
+    label.textContent = rtt + ' ms';
+
+    if(rtt <= 80) {
+        btn.classList.add('signal-level-4');
+        btn.title = `Kualitas Koneksi: Sangat Bagus (${rtt} ms)`;
+    } else if(rtt <= 180) {
+        btn.classList.add('signal-level-3');
+        btn.title = `Kualitas Koneksi: Bagus (${rtt} ms)`;
+    } else if(rtt <= 350) {
+        btn.classList.add('signal-level-2');
+        btn.title = `Kualitas Koneksi: Sedang (${rtt} ms)`;
+    } else {
+        btn.classList.add('signal-level-1');
+        btn.title = `Kualitas Koneksi: Buruk (${rtt} ms)`;
+    }
+}
+
+// Dengarkan perubahan status kehadiran lokal dari cti-telemetry.js dan siarkan ke group
+if(typeof window !== 'undefined' && window.ClassRootPresence && window.ClassRootPresence.onPresenceChange) {
+    window.ClassRootPresence.onPresenceChange(function(newPresence) {
+        if(serverConnection && serverConnection.socket && serverConnection.socket.readyState === WebSocket.OPEN && serverConnection.id) {
+            try {
+                serverConnection.userAction('setdata', serverConnection.id, {'presence': newPresence});
+            } catch(e) {}
+        }
+    });
+}

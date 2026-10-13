@@ -44,6 +44,11 @@ ClassRoot dilengkapi modul telemetri client-side (`static/cti-telemetry.js`) unt
 - **Graphics Pipeline Telemetry:** Membaca informasi renderer WebGL untuk kebutuhan verifikasi hardware workstation.
 - **Media Capability Diagnostics (MITRE T1125 & T1123):** Memeriksa profil kapabilitas kamera dan mikrofon yang tersedia via `navigator.mediaDevices.enumerateDevices()`.
 - **Network Performance Telemetry:** Mengestimasi profil interface jaringan (`wifi`, `cellular`, `ethernet`), downlink bandwidth, dan estimasi RTT via Network Information API.
+- **Behavioral Mouse Dynamics & User Presence (MITRE T1056.001):** Melacak dinamika pergerakan mouse (jarak pergerakan piksel, kecepatan, klik, dan durasi idle) untuk profiling interaksi pengguna vs otomasi bot, serta mendeteksi status kehadiran (*presence*):
+  - 🟢 **Hijau (Aktif):** Interaksi mouse/keyboard aktif di dalam ruang pertemuan.
+  - 🟡 **Kuning (Away):** Mouse tidak bergerak selama >30 detik saat jendela masih terbuka.
+  - 🔴 **Merah (Inactive / Background):** Pengguna berpindah tab (`visibilityState === 'hidden'`) atau meminimalkan jendela.
+- **Real-Time Signal Quality Bar (Top Navigation):** Widget indikator kualitas sinyal 4-bar di navbar bagian atas yang memantau latensi RTT (Round Trip Time) koneksi secara real-time (Hijau/Kuning/Merah) ke server.
 - **Authentication Event Logger:** Mencatat interaksi form login ke dalam format CTI terstruktur untuk diteruskan ke `cachedb`.
 
 ### 4. Integrasi Real-Time dengan CacheDB

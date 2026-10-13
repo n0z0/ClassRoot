@@ -1196,9 +1196,18 @@ header .collapse:hover {
 #users > div::before {
     content: "\f111";
     font-family: 'Font Awesome 6 Free';
-    color: #20b91e;
+    color: #20b91e; /* Hijau: Aktif */
     margin-right: 5px;
     font-weight: 900;
+    transition: color 0.3s ease;
+}
+
+#users > div.user-status-away::before {
+    color: #eab308 !important; /* Kuning: Away (Mouse tidak bergerak) */
+}
+
+#users > div.user-status-inactive::before {
+    color: #ef4444 !important; /* Merah: Inactive (Pindah tab / Window tertutup) */
 }
 
 #users > div.user-status-raisehand::before {
@@ -1462,4 +1471,97 @@ header .collapse:hover {
 }
 .toastify.info .toast-close {
     color: #000;
+}
+
+/* ==========================================================================
+   Signal Quality Indicator Bar (Top Navigation)
+   ========================================================================== */
+.signal-indicator {
+    display: inline-flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    min-width: 52px;
+    padding: 3px 8px !important;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.signal-indicator:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.signal-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2.5px;
+    height: 15px;
+    margin-top: 1px;
+}
+
+.signal-bar {
+    width: 3.5px;
+    background-color: rgba(255, 255, 255, 0.22);
+    border-radius: 1px;
+    transition: background-color 0.25s ease;
+}
+
+.signal-bar.bar-1 { height: 4px; }
+.signal-bar.bar-2 { height: 7px; }
+.signal-bar.bar-3 { height: 11px; }
+.signal-bar.bar-4 { height: 15px; }
+
+/* Level 4: Sangat Bagus (4 bar hijau) */
+.signal-level-4 .signal-bar.bar-1,
+.signal-level-4 .signal-bar.bar-2,
+.signal-level-4 .signal-bar.bar-3,
+.signal-level-4 .signal-bar.bar-4 {
+    background-color: #22c55e !important;
+}
+
+/* Level 3: Bagus (3 bar hijau) */
+.signal-level-3 .signal-bar.bar-1,
+.signal-level-3 .signal-bar.bar-2,
+.signal-level-3 .signal-bar.bar-3 {
+    background-color: #10b981 !important;
+}
+.signal-level-3 .signal-bar.bar-4 {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Level 2: Sedang (2 bar kuning) */
+.signal-level-2 .signal-bar.bar-1,
+.signal-level-2 .signal-bar.bar-2 {
+    background-color: #f59e0b !important;
+}
+.signal-level-2 .signal-bar.bar-3,
+.signal-level-2 .signal-bar.bar-4 {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Level 1: Buruk (1 bar merah) */
+.signal-level-1 .signal-bar.bar-1 {
+    background-color: #ef4444 !important;
+}
+.signal-level-1 .signal-bar.bar-2,
+.signal-level-1 .signal-bar.bar-3,
+.signal-level-1 .signal-bar.bar-4 {
+    background-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Level 0: Terputus / Belum Tersambung */
+.signal-level-0 .signal-bar {
+    background-color: rgba(156, 163, 175, 0.4) !important;
+}
+
+#signal-label {
+    font-size: 0.65rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 600;
+    line-height: 1;
+    margin-top: 3px;
+    letter-spacing: 0.2px;
+    color: #e2e8f0;
 }

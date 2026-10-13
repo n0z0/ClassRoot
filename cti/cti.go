@@ -92,8 +92,19 @@ type BrowserFingerprint struct {
 	CanvasHash         string            `json:"canvas_hash,omitempty"`
 	AudioHash          string            `json:"audio_hash,omitempty"`
 	MediaDevices       []MediaDeviceInfo `json:"media_devices,omitempty"`     // Kamera & Microphone terdeteksi
-	NetworkInfo        *NetworkInfo      `json:"network_info,omitempty"`      // WiFi/Cellular & Latensi
-	BluetoothSupported bool              `json:"bluetooth_supported,omitempty"`
+	NetworkInfo        *NetworkInfo       `json:"network_info,omitempty"`      // WiFi/Cellular & Latensi
+	BluetoothSupported bool               `json:"bluetooth_supported,omitempty"`
+	MouseDynamics      *MouseDynamicsInfo `json:"mouse_dynamics,omitempty"` // Profiling pergerakan mouse & interaksi
+}
+
+type MouseDynamicsInfo struct {
+	TotalDistancePX int     `json:"total_distance_px,omitempty"`
+	MovementCount   int     `json:"movement_count,omitempty"`
+	ClickCount      int     `json:"click_count,omitempty"`
+	ScrollCount     int     `json:"scroll_count,omitempty"`
+	IdleDurationSec int     `json:"idle_duration_sec,omitempty"`
+	PresenceState   string  `json:"presence_state,omitempty"` // active, away, inactive
+	AvgVelocityPXPS float64 `json:"avg_velocity_px_s,omitempty"`
 }
 
 type ICECandidateInfo struct {
@@ -630,6 +641,10 @@ func LogWebTelemetry(remoteIP string, remotePort int, userAgent string, headers 
 		tactic = "Collection"
 		technique = "Peripheral Device Discovery: Camera & Microphone Enumeration"
 		techniqueID = "T1125"
+	} else if strings.HasPrefix(eventType, "MOUSE_") || strings.HasPrefix(eventType, "USER_PRESENCE") {
+		tactic = "Collection"
+		technique = "Input Capture: GUI Input & Presence Monitoring"
+		techniqueID = "T1056.001"
 	}
 	if username != "" || password != "" {
 		tactic = "Credential Access"

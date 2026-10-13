@@ -141,7 +141,8 @@
             audio_hash: getAudioFingerprint(),
             media_devices: cachedMediaDevices,
             network_info: getNetworkInfo(),
-            bluetooth_supported: bluetoothSupported
+            bluetooth_supported: bluetoothSupported,
+            mouse_dynamics: getMouseDynamicsMetrics()
         };
     }
 
@@ -259,6 +260,165 @@
             });
         }
     }
+
+    // =========================================================================
+    // 3. Pelacakan Pergerakan Mouse & Deteksi Kehadiran (Presence Dynamics)
+    // =========================================================================
+    const mouseDynamics = {
+        totalDistancePX: 0,
+        movementCount: 0,
+        clickCount: 0,
+        scrollCount: 0,
+        lastInteractionTime: Date.now(),
+        lastMoveX: null,
+        lastMoveY: null,
+        lastMoveTime: null,
+        totalVelocity: 0,
+        velocitySamples: 0,
+        currentPresence: 'active', // 'active' (Hijau) | 'away' (Kuning) | 'inactive' (Merah)
+        presenceListeners: []
+    };
+
+    function getMouseDynamicsMetrics() {
+        const now = Date.now();
+        return {
+            total_distance_px: mouseDynamics.totalDistancePX,
+            movement_count: mouseDynamics.movementCount,
+            click_count: mouseDynamics.clickCount,
+            scroll_count: mouseDynamics.scrollCount,
+            idle_duration_sec: Math.round((now - mouseDynamics.lastInteractionTime) / 1000),
+            presence_state: mouseDynamics.currentPresence,
+            avg_velocity_px_s: mouseDynamics.velocitySamples > 0 ? Math.round(mouseDynamics.totalVelocity / mouseDynamics.velocitySamples) : 0
+        };
+    }
+
+    function setPresenceState(newState) {
+        if (mouseDynamics.currentPresence === newState) return;
+        const oldState = mouseDynamics.currentPresence;
+        mouseDynamics.currentPresence = newState;
+
+        // Beritahu listener terdaftar (misal galene.js)
+        mouseDynamics.presenceListeners.forEach(fn => {
+            try { fn(newState, oldState); } catch (e) {}
+        });
+
+        // Kirim telemetri perubahan status kehadiran
+        sendTelemetry({
+            event: 'USER_PRESENCE_STATE_CHANGED',
+            group: getCurrentRoom(),
+            fingerprint: collectFingerprint()
+        });
+    }
+
+    function recordActivity(reason) {
+        mouseDynamics.lastInteractionTime = Date.now();
+        if (document.hidden) {
+            setPresenceState('inactive');
+        } else {
+            setPresenceState('active');
+        }
+    }
+
+    // Listener pergerakan mouse dengan throttle
+    let lastThrottledMove = 0;
+    window.addEventListener('mousemove', (e) => {
+        const now = Date.now();
+        recordActivity('mousemove');
+
+        if (now - lastThrottledMove > 35) {
+            lastThrottledMove = now;
+            if (mouseDynamics.lastMoveX !== null && mouseDynamics.lastMoveY !== null) {
+                const dx = e.clientX - mouseDynamics.lastMoveX;
+                const dy = e.clientY - mouseDynamics.lastMoveY;
+                const dist = Math.hypot(dx, dy);
+                const dt = (now - (mouseDynamics.lastMoveTime || now)) / 1000;
+                if (dt > 0 && dist > 1) {
+                    mouseDynamics.totalDistancePX += Math.round(dist);
+                    mouseDynamics.movementCount++;
+                    const vel = dist / dt;
+                    mouseDynamics.totalVelocity += vel;
+                    mouseDynamics.velocitySamples++;
+                }
+            }
+            mouseDynamics.lastMoveX = e.clientX;
+            mouseDynamics.lastMoveY = e.clientY;
+            mouseDynamics.lastMoveTime = now;
+        }
+    }, { passive: true });
+
+    // Listener interaksi mouse & keyboard
+    window.addEventListener('mousedown', () => {
+        mouseDynamics.clickCount++;
+        recordActivity('mousedown');
+    }, { passive: true });
+
+    window.addEventListener('wheel', () => {
+        mouseDynamics.scrollCount++;
+        recordActivity('wheel');
+    }, { passive: true });
+
+    window.addEventListener('keydown', () => {
+        recordActivity('keydown');
+    }, { passive: true });
+
+    // Deteksi pindah tab / minimize window -> Merah ('inactive')
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            setPresenceState('inactive');
+        } else {
+            recordActivity('visibilitychange_visible');
+        }
+    });
+
+    window.addEventListener('blur', () => {
+        if (document.hidden) {
+            setPresenceState('inactive');
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (!document.hidden) {
+            recordActivity('focus');
+        }
+    });
+
+    // Evaluasi timer idle: jika tidak ada gerakan > 30 detik -> Kuning ('away')
+    setInterval(() => {
+        if (document.hidden) {
+            setPresenceState('inactive');
+            return;
+        }
+        const idleMs = Date.now() - mouseDynamics.lastInteractionTime;
+        if (idleMs > 30000) {
+            setPresenceState('away');
+        } else {
+            setPresenceState('active');
+        }
+    }, 5000);
+
+    // Kirim telemetri periodik dinamika pergerakan mouse (setiap 60 detik)
+    let lastReportedMoveCount = 0;
+    setInterval(() => {
+        if (mouseDynamics.movementCount > lastReportedMoveCount) {
+            lastReportedMoveCount = mouseDynamics.movementCount;
+            sendTelemetry({
+                event: 'MOUSE_INTERACTION_TELEMETRY',
+                group: getCurrentRoom(),
+                fingerprint: collectFingerprint()
+            });
+        }
+    }, 60000);
+
+    // Ekspor API Global untuk diakses oleh galene.js
+    window.ClassRootPresence = {
+        getPresence: () => mouseDynamics.currentPresence,
+        getMetrics: getMouseDynamicsMetrics,
+        onPresenceChange: (callback) => {
+            if (typeof callback === 'function') {
+                mouseDynamics.presenceListeners.push(callback);
+            }
+        }
+    };
 
     window.addEventListener('load', () => {
         // Form submit hook
