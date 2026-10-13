@@ -258,10 +258,17 @@ function isFirefox() {
  *
  * @param{boolean} connected
  */
+let wasRoomConnected = false;
+
 function setConnected(connected) {
     let userbox = document.getElementById('profile');
     let connectionbox = document.getElementById('login-container');
     if(connected) {
+        wasRoomConnected = true;
+        let alertEl = document.getElementById('disconnect-debug-alert');
+        if(alertEl) {
+            alertEl.classList.add('invisible');
+        }
         clearChat();
         let testCamera =  /** @type{HTMLDetailsElement} */
             (document.getElementById('test-camera'));
@@ -397,6 +404,43 @@ function onPeerConnection() {
     return conf;
 }
 
+function formatDisconnectDebug(code, reason) {
+    let meaning = "";
+    let recommendation = "";
+    switch(code) {
+        case 1000:
+            meaning = "1000 Normal Closure (Koneksi ditutup rapi oleh server / client idle timeout)";
+            recommendation = "Koneksi ditutup secara normal. Jika Anda tidak sengaja keluar, kemungkinan sesi mengalami idle timeout. Klik 'Connect' untuk masuk kembali.";
+            break;
+        case 1001:
+            meaning = "1001 Going Away (Server sedang restart atau tab berpindah halaman)";
+            recommendation = "Server baru saja direstart atau halaman browser dimuat ulang.";
+            break;
+        case 1006:
+            meaning = "1006 Abnormal Closure (Socket terputus tiba-tiba tanpa sinyal penutupan)";
+            recommendation = "Paling sering terjadi karena: proses server mati/restart, WiFi/jaringan terputus, atau tab browser di-minimize terlalu lama sehingga ditidurkan (sleep/throttle) oleh sistem.";
+            break;
+        case 1008:
+            meaning = "1008 Policy Violation (Autentikasi ditolak atau user di-kick dari room)";
+            recommendation = "Periksa username/password ruangan atau pastikan ruangan tidak dikunci oleh operator.";
+            break;
+        case 1011:
+            meaning = "1011 Internal Server Error (Kendala internal pada daemon server)";
+            recommendation = "Terjadi exception internal pada daemon server ClassRoot. Silakan periksa log server.";
+            break;
+        default:
+            meaning = `Status Code ${code || 'Unknown'}: ${reason || "Koneksi socket terputus"}`;
+            recommendation = "Periksa jaringan LAN/internet dan klik 'Connect' untuk bergabung kembali.";
+    }
+    return {
+        timestamp: new Date().toLocaleTimeString(),
+        code: code || 1006,
+        reason: reason || "(koneksi terputus tiba-tiba tanpa pesan)",
+        meaning: meaning,
+        recommendation: recommendation
+    };
+}
+
 /**
  * @this {ServerConnection}
  * @param {number} code
@@ -405,10 +449,33 @@ function onPeerConnection() {
 function gotClose(code, reason) {
     closeUpMedia();
     closeSafariStream();
+    let hadSession = wasRoomConnected;
     setConnected(false);
-    if(code !== 1000) {
+
+    if(hadSession) {
+        let debug = formatDisconnectDebug(code, reason);
+        console.warn('Socket disconnect [DEBUG INFO]:', debug);
+
+        // 1. Tampilkan banner debug di login box
+        let alertEl = document.getElementById('disconnect-debug-alert');
+        let bodyEl = document.getElementById('disconnect-debug-body');
+        let helpEl = document.getElementById('disconnect-debug-help');
+        if(alertEl && bodyEl && helpEl) {
+            bodyEl.textContent = `Waktu Kejadian : ${debug.timestamp}\n` +
+                                 `Kode WebSocket : ${debug.code}\n` +
+                                 `Diagnosa       : ${debug.meaning}\n` +
+                                 `Pesan Error    : ${debug.reason}`;
+            helpEl.innerHTML = `<strong>Rekomendasi:</strong> ${debug.recommendation}`;
+            alertEl.classList.remove('invisible');
+        }
+
+        // 2. Tampilkan notifikasi Toast visual
+        let toastMsg = `⚠️ Terputus dari Room (Kode: ${debug.code})\n${debug.meaning}`;
+        displayError(toastMsg, "kicked");
+    } else if(code !== 1000) {
         console.warn('Socket close', code, reason);
     }
+
     let form = document.getElementById('loginform');
     if(!(form instanceof HTMLFormElement))
         throw new Error('Bad type for loginform');
@@ -3864,7 +3931,7 @@ function displayError(message, level) {
     /** @ts-ignore */
     Toastify({
         text: message,
-        duration: 4000,
+        duration: 7000,
         close: true,
         position: position,
         gravity: gravity,

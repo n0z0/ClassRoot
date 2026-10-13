@@ -81,7 +81,7 @@ Secara default, ClassRoot berjalan di mode **HTTPS**. Jika sertifikat TLS belum 
 ```bash
 classroot -http :8443
 ```
-Buka di browser perangkat lain: `https://<ip-komputer>:8443/group/public/`. Klik *Advanced -> Proceed*, dan seluruh fitur WebRTC (**Share Screen**, Kamera, Mic) langsung aktif!
+Buka di browser perangkat lain: `https://<ip-komputer>:8443/group/main/`. Klik *Advanced -> Proceed*, dan seluruh fitur WebRTC (**Share Screen**, Kamera, Mic) langsung aktif!
 
 ### Menjalankan Server Decoy HTTP Biasa (Insecure)
 ```bash

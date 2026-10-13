@@ -103,10 +103,15 @@ func main() {
 
 	// Pastikan direktori groups dan data otomatis dibuat jika belum ada
 	if err := os.MkdirAll(group.Directory, 0755); err == nil {
-		defaultGroup := filepath.Join(group.Directory, "public.json")
-		// Buat baru atau perbarui jika public.json lama belum memiliki wildcard-user atau allow-recording
+		defaultGroup := filepath.Join(group.Directory, "main.json")
+		// Buat baru atau perbarui jika main.json lama belum memiliki wildcard-user atau allow-recording
 		if data, err := os.ReadFile(defaultGroup); os.IsNotExist(err) || (err == nil && (!strings.Contains(string(data), "wildcard-user") || !strings.Contains(string(data), "allow-recording"))) {
 			_ = os.WriteFile(defaultGroup, []byte("{\"public\": true, \"allow-recording\": true, \"wildcard-user\": {\"password\": {\"type\": \"wildcard\"}, \"permissions\": \"present\"}}\n"), 0644)
+		}
+		// Bersihkan file public.json lama jika ada agar room default beralih ke main
+		oldPublic := filepath.Join(group.Directory, "public.json")
+		if _, err := os.Stat(oldPublic); err == nil {
+			_ = os.Remove(oldPublic)
 		}
 		briefingGroup := filepath.Join(group.Directory, "it-briefing.json")
 		if data, err := os.ReadFile(briefingGroup); os.IsNotExist(err) || (err == nil && !strings.Contains(string(data), "allow-recording")) {

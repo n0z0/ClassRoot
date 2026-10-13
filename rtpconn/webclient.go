@@ -1030,8 +1030,8 @@ func clientLoop(c *webClient, ws *websocket.Conn, versionError bool) error {
 				}
 			}
 		case <-ticker.C:
-			if time.Since(readTime) > 45*time.Second {
-				return errors.New("client is dead")
+			if time.Since(readTime) > 120*time.Second {
+				return errors.New("client is dead (heartbeat timeout > 120s)")
 			}
 			// Some reverse proxies timeout connexions at 60
 			// seconds, make sure we generate some activity

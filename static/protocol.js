@@ -322,17 +322,28 @@ ServerConnection.prototype.connect = function(url) {
 
     this.pingHandler = setInterval(() => {
         if(!sc.lastServerMessage) {
-            sc.error(new Error('Timeout'));
+            sc.error(new Error('Koneksi timeout: belum ada data dari server'));
             return;
         }
         let d = new Date().valueOf() - sc.lastServerMessage;
-        if(d > 65000) {
-            sc.error(new Error('Timeout'));
+        if(d > 150000) {
+            sc.error(new Error('Koneksi timeout: server tidak merespon lebih dari 150 detik'));
             return;
         }
         if(sc.version && d >= 15000)
             sc.send({type: 'ping'});
     }, 10000);
+
+    // Kirim keepalive instan ketika tab kembali aktif dari background
+    if(typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', () => {
+            if(!document.hidden && sc.socket && sc.socket.readyState === WebSocket.OPEN) {
+                try {
+                    sc.send({type: 'ping'});
+                } catch(e) {}
+            }
+        });
+    }
 
     this.socket.onerror = function(e) {
         if(sc.onerror)

@@ -55,7 +55,7 @@ function serverConnect(status, token) {
             {type: 'token', token: token} :
             {type: 'password', password: ''};
         // join the group and wait for the onjoined callback
-        await this.join("public", "example-user", creds);
+        await this.join("main", "example-user", creds);
     };
     conn.onchat = onChat;
     conn.onusermessage = onUserMessage;
@@ -307,7 +307,7 @@ document.getElementById('start').onclick = async function(e) {
     let button = /** @type{HTMLButtonElement} */(this);
     button.hidden = true;
     try {
-        await start("/group/public/");
+        await start("/group/main/");
     } catch(e) {
         displayError(e);
     };
