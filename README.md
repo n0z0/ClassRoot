@@ -4,55 +4,54 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/n0z0/ClassRoot)](https://goreportcard.com/report/github.com/n0z0/ClassRoot)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**ClassRoot** adalah server media konferensi video interaktif WebRTC berkinerja tinggi yang diinstrumentasi khusus sebagai **Decoy / Honeypot Sensor** untuk **Cyber Threat Intelligence (CTI)**.
+**ClassRoot** adalah server media konferensi video interaktif WebRTC berkinerja tinggi yang dilengkapi kapabilitas **Threat Intelligence Telemetry & Security Observability (SOC-Grade)**.
 
-ClassRoot memadukan fungsionalitas ruang pertemuan WebRTC sungguhan dengan mesin telemetri intelijen ancaman aktif. Ketika penyerang atau pengguna tanpa izin mencoba mengakses ruang pertemuan, ClassRoot secara otomatis mengekstrak detail jaringan tingkat dalam—termasuk alamat IP lokal/LAN penyerang di balik VPN melalui kebocoran kandidat WebRTC ICE (*Interactive Connectivity Establishment*).
-
----
-
-## 🎯 Peran dalam Ekosistem n0z0 CTI
-
-Dalam ekosistem pertahanan berlapis `n0z0`:
-- **`synwatcher`**: Mengawasi probe port jaringan level rendah (SYN scanning, port sweeping).
-- **`scpd`**: Mendeteksi penyusup yang mencoba login SSH / mentransfer berkas ilegal.
-- **`lemes`**: Menyediakan Honeybeacon & Lure HTTP/HTML canary untuk melacak pembukaan dokumen intelijen palsu.
-- **`ClassRoot`**: Memancing pelaku yang mencari layanan komunikasi internal (WebRTC/Zoom-like meeting) dan **membongkar topologi jaringan privat (LAN IP) penyerang** melalui WebRTC ICE Candidate Leakage.
-- **`cachedb`**: Pusat agregasi memori berbasis gRPC berkinerja tinggi yang menerima indikator ancaman secara real-time.
+ClassRoot memadukan fungsionalitas ruang pertemuan WebRTC mutakhir dengan mesin observabilitas telemetri keamanan aktif. Ketika terdapat upaya akses tidak terotorisasi, sistem secara otomatis merekam telemetri jaringan tingkat dalam—termasuk analisis kandidat WebRTC ICE (*Interactive Connectivity Establishment*) guna pemetaan topologi jaringan untuk kebutuhan Cyber Threat Intelligence (CTI).
 
 ---
 
-## ⚡ Fitur Utama & Intelijen WebRTC
+## 🎯 Peran dalam Ekosistem Pertahanan Terpadu
 
-### 1. WebRTC ICE Candidate IP De-anonymization (MITRE T1016)
-Banyak penyerang menggunakan proxy HTTP atau VPN komersial untuk menyamarkan alamat IP publik mereka. Namun, standar WebRTC mengharuskan browser mengumpulkan alamat interface lokal (*host candidates*) untuk konektivitas peer-to-peer:
-- **Host Candidates (`typ host`)**: Mengungkap alamat IP privat penyerang (misal `192.168.1.105`, `10.8.0.2`), tipe protokol (UDP/TCP), port, dan subnet lokal.
-- **Server Reflexive Candidates (`typ srflx`)**: Mengungkap alamat IP publik dan port NAT yang dipetakan oleh STUN.
-- **Relay Candidates (`typ relay`)**: Mengungkap server relay TURN penyerang.
-
-ClassRoot mencegat kandidat ini pada dua lapisan:
-1. Pesan pertukaran Trickle ICE WebRTC (`candidate` payload via WebSocket).
-2. Parsing baris `a=candidate:` langsung di dalam SDP (*Session Description Protocol*) Offer.
-
-### 2. Room Authentication & Credential Abuse Tracking (MITRE T1110 & T1078)
-- Mendeteksi upaya brute-force kata sandi ruangan (misal ruang `it-briefing`).
-- Mencatat username, password yang dimasukkan penyerang, grup target, dan status otentikasi.
-
-### 3. Client-Side Sensor & Hardware Fingerprinting (`cti-telemetry.js`)
-ClassRoot dilengkapi sensor JavaScript client-side (`static/cti-telemetry.js`) yang berjalan otomatis di browser penyerang saat membuka landing page maupun form login:
-- **Pre-Auth Recon Beacon:** Mengirim beacon pengintaian instan saat halaman dimuat (`/api/telemetry`).
-- **GPU Unmasking:** Menggunakan WebGL extension `WEBGL_debug_renderer_info` untuk mengungkap chipset grafis asli penyerang (misal `NVIDIA GeForce RTX 3070`) bahkan saat penyerang memakai VPN atau mode Incognito.
-- **Hardware & Environment Fingerprinting:** Merekam resolusi layar, color depth, logical CPU cores (`hardwareConcurrency`), RAM (`deviceMemory`), timezone sistem, bahasa preferensi OS, canvas hash, dan audio context hash.
-- **Webcam & Microphone Hardware Enumeration (MITRE T1125 & T1123):** Memanen daftar model hardware webcam (misal: `Logitech HD Pro C920`, `OBS Virtual Camera`) dan perangkat audio/mic (misal: `Realtek High Definition Audio`, `HyperX Cloud`) via `navigator.mediaDevices.enumerateDevices()`. Sensor mengaitkan hook pada `getUserMedia` sehingga saat izin mic/kamera diberikan atau ditolak, model perangkat langsung dikirim ke backend CTI.
-- **Network Interface Telemetry (WiFi vs Ethernet):** Mengidentifikasi tipe jaringan fisik (`wifi`, `cellular`, `ethernet`), estimasi bandwidth downlink, dan latensi RTT via Network Information API.
-- **Bluetooth Radio Discovery:** Mendeteksi ketersediaan modul Bluetooth aktif pada workstation penyerang via Web Bluetooth API.
-- **Credential Harvester:** Mencegat interaksi tombol *Connect* / login modal, merekam username dan password ke log CTI dan menyimpannya ke `cachedb`.
-
-### 4. Integrasi Otomatis dengan CacheDB
-Dapat mengirimkan IOC (*Indicators of Compromise*) secara langsung ke server `cachedb` via gRPC, memungkinkan pemblokiran atau korelasi otomatis oleh sensor lain.
+Dalam arsitektur pemantauan ancaman multi-layer:
+- **`synwatcher`**: Mengamati anomali probe transport level rendah (SYN scanning, port sweep).
+- **`scpd`**: Mendokumentasikan dan menganalisis percobaan akses ilegal pada protokol transfer berkas & SSH.
+- **`lemes`**: Memantau interaksi akses berkas dan canary token berbasis HTTP/dokumen umpan.
+- **`ClassRoot`**: Menyediakan node layanan komunikasi kolaboratif (WebRTC) dengan pencatatan telemetri interface jaringan, ICE candidate profiling, dan audit akses L7.
+- **`cachedb`**: In-memory correlation bus berbasis gRPC untuk agregasi indikator ancaman (IOC) secara real-time.
 
 ---
 
-## 🚀 Instalasi Cepat
+## ⚡ Fitur Utama & Telemetri Keamanan
+
+### 1. WebRTC ICE Candidate & Network Topology Mapping (MITRE T1016)
+Protokol WebRTC mengumpulkan interface lokal (*host candidates*) untuk konektivitas peer-to-peer:
+- **Host Candidates (`typ host`)**: Mengidentifikasi interface jaringan lokal client, tipe protokol (UDP/TCP), port, dan subnet.
+- **Server Reflexive Candidates (`typ srflx`)**: Menentukan IP publik dan pemetaan port NAT via STUN.
+- **Relay Candidates (`typ relay`)**: Mendokumentasikan relay endpoint TURN yang digunakan client.
+
+Telemetri dianalisis pada dua lapisan:
+1. Pertukaran pesan Trickle ICE WebRTC (`candidate` via WebSocket).
+2. Pemeriksaan parameter `a=candidate:` di dalam SDP (*Session Description Protocol*) Offer.
+
+### 2. Audit Autentikasi & Access Tracking (MITRE T1110 & T1078)
+- Memantau dan mencatat upaya otentikasi pada ruangan terproteksi (misal ruang `it-briefing`).
+- Mendokumentasikan username, pola input otentikasi, target grup ruangan, dan status verifikasi ke log CTI.
+
+### 3. Client Environment & Peripheral Diagnostics (`cti-telemetry.js`)
+ClassRoot dilengkapi modul telemetri client-side (`static/cti-telemetry.js`) untuk memverifikasi integritas lingkungan browser yang mengakses sistem:
+- **Pre-Auth Session Beacon:** Mengirim telemetri inisiasi saat halaman pertama kali dimuat (`/api/telemetry`).
+- **Hardware & Environment Diagnostics:** Mencatat resolusi layar, color depth, logical CPU cores (`hardwareConcurrency`), estimasi RAM (`deviceMemory`), timezone sistem, preferensi bahasa OS, dan canvas hash.
+- **Graphics Pipeline Telemetry:** Membaca informasi renderer WebGL untuk kebutuhan verifikasi hardware workstation.
+- **Media Capability Diagnostics (MITRE T1125 & T1123):** Memeriksa profil kapabilitas kamera dan mikrofon yang tersedia via `navigator.mediaDevices.enumerateDevices()`.
+- **Network Performance Telemetry:** Mengestimasi profil interface jaringan (`wifi`, `cellular`, `ethernet`), downlink bandwidth, dan estimasi RTT via Network Information API.
+- **Authentication Event Logger:** Mencatat interaksi form login ke dalam format CTI terstruktur untuk diteruskan ke `cachedb`.
+
+### 4. Integrasi Real-Time dengan CacheDB
+Dapat mengirimkan indikator telemetri ancaman (IOC) secara langsung ke server `cachedb` via gRPC untuk korelasi otomatis lintas sensor.
+
+---
+
+## 🚀 Panduan Instalasi
 
 ### Windows (PowerShell)
 ```powershell
@@ -76,44 +75,45 @@ go build -o classrootctl.exe ./classrootctl
 
 ## 🛠️ Cara Penggunaan
 
-### Menjalankan Server Decoy HTTPS (Default - Auto Self-Signed Cert)
-Secara default, ClassRoot berjalan di mode **HTTPS**. Jika sertifikat TLS belum ada di folder `data/`, ClassRoot akan **secara otomatis men-generate sertifikat self-signed** dengan Subject Alternative Names (SAN) mencakup `localhost`, `127.0.0.1`, dan seluruh IP LAN lokal Anda:
+### Menjalankan Server HTTPS (Default - Auto TLS)
+Secara default, ClassRoot berjalan pada mode **HTTPS**. Jika sertifikat TLS belum ada di folder `data/`, ClassRoot secara otomatis menerbitkan sertifikat lokal:
 ```bash
 classroot -http :8443
 ```
-Buka di browser perangkat lain: `https://<ip-komputer>:8443/group/main/`. Klik *Advanced -> Proceed*, dan seluruh fitur WebRTC (**Share Screen**, Kamera, Mic) langsung aktif!
+Akses melalui peramban: `https://<ip-komputer>:8443/group/main/`.  
+*(Jika menggunakan peramban modern dengan sertifikat lokal, konfirmasi halaman peringatan TLS dengan memilih "Advanced" -> "Proceed to localhost" agar fitur media WebRTC kamera & mikrofon dapat berjalan).*
 
-### Menjalankan Server Decoy HTTP Biasa (Insecure)
+### Menjalankan Mode HTTP Standar
 ```bash
 classroot -insecure -http :8443 -ctilog classroot_cti.jsonl
 ```
 
-### Menjalankan Decoy dengan Integrasi CacheDB
+### Menjalankan dengan Integrasi CacheDB
 ```bash
 classroot -http :8443 -ctilog classroot_cti.jsonl -cachedb 127.0.0.1:50051 -sensor-id "sensor-webrtc-dc1"
 ```
 
-### Opsi Parameter Baris Perintah
+### Parameter Baris Perintah
 | Flag | Default | Penjelasan |
 |------|---------|------------|
 | `-http` | `:8443` | Alamat & port web server ClassRoot |
-| `-insecure` | `false` | Jalankan HTTP biasa (tanpa sertifikat TLS bawaan) |
+| `-insecure` | `false` | Jalankan protokol HTTP biasa (tanpa enkripsi TLS) |
 | `-static` | `./static/` | Direktori berkas UI web statis (HTML/JS/CSS) |
 | `-groups` | `./groups/` | Direktori konfigurasi ruangan pertemuan |
 | `-data` | `./data/` | Direktori data persistent |
-| `-ctilog` | `classroot_cti.jsonl` | Lokasi berkas output log telemetri CTI (JSON Lines) |
-| `-sensor-id` | `hostname` | Identitas unik sensor node |
-| `-cachedb` | `""` | Alamat target gRPC server CacheDB (contoh: `127.0.0.1:50051`) |
+| `-ctilog` | `classroot_cti.jsonl` | Lokasi berkas log telemetri CTI (JSON Lines) |
+| `-sensor-id` | `hostname` | Identitas node sensor |
+| `-cachedb` | `""` | Alamat endpoint gRPC server CacheDB (contoh: `127.0.0.1:50051`) |
 | `-turn` | `auto` | Konfigurasi bawaan built-in TURN server |
-| `-version` | `false` | Menampilkan versi ClassRoot saat ini |
+| `-version` | `false` | Menampilkan versi ClassRoot |
 
 ---
 
-## 📊 Skema Log CTI (JSON Lines)
+## 📊 Skema Log Telemetri (JSON Lines)
 
-Setiap aktivitas interaksi dan kebocoran ICE candidate akan dicatat ke berkas JSONL (`-ctilog`):
+Setiap peristiwa koneksi dan interaksi tercatat secara terstruktur ke berkas log (`-ctilog`):
 
-### 1. Kebocoran WebRTC ICE Candidate (LAN IP Terungkap)
+### 1. Telemetri WebRTC ICE Candidate
 ```json
 {
   "timestamp": "2026-10-08T10:45:12.124890+07:00",
@@ -122,7 +122,7 @@ Setiap aktivitas interaksi dan kebocoran ICE candidate akan dicatat ke berkas JS
   "source_ip": "203.0.113.45",
   "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36...",
   "group": "it-briefing",
-  "username": "attacker99",
+  "username": "client-operator",
   "candidate": {
     "ip": "192.168.1.15",
     "port": 54231,
@@ -131,11 +131,11 @@ Setiap aktivitas interaksi dan kebocoran ICE candidate akan dicatat ke berkas JS
     "raw": "candidate:14563 1 udp 2122260223 192.168.1.15 54231 typ host generation 0"
   },
   "mitre_technique": "T1016",
-  "details": "WebRTC Host candidate leaked internal LAN IP (192.168.1.15:54231)"
+  "details": "WebRTC Host candidate recorded client LAN interface (192.168.1.15:54231)"
 }
 ```
 
-### 2. Upaya Autentikasi Ruang Rahasia Gagal
+### 2. Audit Upaya Autentikasi Ruangan
 ```json
 {
   "timestamp": "2026-10-08T10:46:01.402115+07:00",
@@ -144,21 +144,21 @@ Setiap aktivitas interaksi dan kebocoran ICE candidate akan dicatat ke berkas JS
   "source_ip": "203.0.113.45",
   "user_agent": "Mozilla/5.0 ...",
   "group": "it-briefing",
-  "username": "admin",
+  "username": "guest_user",
   "mitre_technique": "T1110",
-  "details": "User 'admin' failed authentication for room 'it-briefing'"
+  "details": "Authentication verification failed for room 'it-briefing'"
 }
 ```
 
 ---
 
-## 🛡️ Skenario Umpan (Decoy Strategy)
+## 🛡️ Konfigurasi Ruangan Bawaan
 
-Secara otomatis, ClassRoot menginisialisasi 2 ruangan pancingan:
-1. **`public`**: Ruangan terbuka umum. Siapa saja yang masuk akan segera menginisialisasi sesi WebRTC dan membocorkan ICE candidate perangkatnya.
-2. **`it-briefing`**: Ruangan dengan proteksi sandi bertema teknis internal IT perusahaan. Penyerang yang mencoba mengakses ruangan ini akan memicu alarm brute force sekaligus membocorkan data interface perangkat lokalnya.
+ClassRoot menginisialisasi 2 ruang pertemuan default:
+1. **`main`**: Ruangan kolaborasi terbuka dengan otorisasi wildcard. Pengguna dapat langsung bergabung tanpa kata sandi khusus.
+2. **`it-briefing`**: Ruangan terproteksi sandi untuk pemantauan audit akses administratif.
 
-Anda dapat menambahkan ruang umpan khusus lainnya di dalam direktori `groups/` (misalnya `executive-board.json`, `financial-audit.json`).
+Ruangan tambahan dapat ditambahkan secara dinamis dalam format JSON pada direktori `groups/` (misalnya `board-meeting.json`).
 
 ---
 
