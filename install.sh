@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ClassRoot WebRTC Decoy Installer / Upgrader for Linux
+# ClassRoot WebRTC Media Server Installer / Upgrader for Linux
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/n0z0/ClassRoot/main/install.sh | bash
@@ -25,7 +25,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo "=========================================="
-echo " ClassRoot WebRTC Decoy Installer (Linux) "
+echo " ClassRoot WebRTC Media Server Installer  "
 echo "=========================================="
 
 ARCH="$(uname -m)"
@@ -122,7 +122,7 @@ if [[ ":${PATH}:" != *":${INSTALL_DIR}:"* ]]; then
 fi
 
 echo "=========================================="
-echo " Sukses! ClassRoot WebRTC Decoy terpasang."
+echo " Sukses! ClassRoot WebRTC Media Server terpasang."
 echo " Versi : ${TARGET_TAG}"
 echo " Lokasi: ${INSTALL_DIR}/classroot"
 echo "=========================================="

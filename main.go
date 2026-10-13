@@ -275,7 +275,7 @@ func printNetworkInterfaces(address string, insecure bool) {
 
 	fmt.Println()
 	fmt.Println("==================================================================")
-	fmt.Printf("  ClassRoot WebRTC Media & CTI Server v%s Berjalan\n", appVersion)
+	fmt.Printf("  ClassRoot WebRTC Enterprise Media Server v%s Berjalan\n", appVersion)
 	fmt.Println("==================================================================")
 	fmt.Println("  [Akses Localhost]:")
 	fmt.Printf("    * %s://localhost:%s/\n", scheme, port)
@@ -311,7 +311,7 @@ func printNetworkInterfaces(address string, insecure bool) {
 					foundAny = true
 					fmt.Printf("    * %s (IP: %s):\n", iface.Name, ipv4.String())
 					fmt.Printf("        URL Portal : %s://%s:%s/\n", scheme, ipv4.String(), port)
-					fmt.Printf("        Ruang Rapat: %s://%s:%s/group/public/\n", scheme, ipv4.String(), port)
+					fmt.Printf("        Ruang Rapat: %s://%s:%s/group/main/\n", scheme, ipv4.String(), port)
 				}
 			}
 		}
@@ -320,7 +320,7 @@ func printNetworkInterfaces(address string, insecure bool) {
 		}
 	}
 	fmt.Println("==================================================================")
-	fmt.Println("  Grup Default: /group/public/  |  Rekaman: /recordings/")
+	fmt.Println("  Grup Default: /group/main/  |  Rekaman: /recordings/")
 	fmt.Println("==================================================================")
 	fmt.Println()
 }

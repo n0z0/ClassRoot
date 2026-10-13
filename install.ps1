@@ -7,7 +7,7 @@ param (
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " ClassRoot WebRTC Decoy Installer (Win)   " -ForegroundColor Cyan
+Write-Host " ClassRoot WebRTC Media Server Installer  " -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. Tentukan tag rilis
@@ -110,7 +110,7 @@ if ($UserPath -notlike "*$InstallDir*") {
 # 5. Selesai
 $InstalledExe = Join-Path $InstallDir "classroot.exe"
 Write-Host "==========================================" -ForegroundColor Green
-Write-Host " Sukses! ClassRoot Decoy berhasil dipasang." -ForegroundColor Green
+Write-Host " Sukses! ClassRoot Media Server terpasang." -ForegroundColor Green
 Write-Host " Versi: $TargetTag" -ForegroundColor Green
 Write-Host " Lokasi: $InstalledExe" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
