@@ -95,7 +95,11 @@ func Serve(address string, dataDir string) error {
 	go func() {
 		defer listener.Close()
 		if !Insecure {
-			err = s.ServeTLS(listener, "", "")
+			// Serve HTTPS and plain HTTP on the same port: plain
+			// HTTP requests are redirected to HTTPS.
+			sl := newSplitListener(listener)
+			go newRedirectServer().Serve(sl.plain)
+			err = s.ServeTLS(sl.tls, "", "")
 		} else {
 			err = s.Serve(listener)
 		}
