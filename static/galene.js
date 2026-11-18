@@ -605,6 +605,41 @@ function setButtonsVisibility() {
     setVisibility('simulcastform', canPresent);
 
     setVisibility('collapse-video', mediacount && mobilelayout);
+
+    updateRecordButton();
+}
+
+/**
+ * Returns true if the server-side disk writer is in the group.
+ *
+ * @returns {boolean}
+ */
+function isRecording() {
+    if(!serverConnection || !serverConnection.users)
+        return false;
+    for(let id in serverConnection.users) {
+        if(serverConnection.users[id].username === 'RECORDING')
+            return true;
+    }
+    return false;
+}
+
+function updateRecordButton() {
+    let button = document.getElementById('recordbutton');
+    if(!button)
+        return;
+    let connected = serverConnection && serverConnection.socket;
+    let canRecord = !!connected &&
+        serverConnection.permissions.indexOf('record') >= 0;
+    setVisibility('recordbutton', canRecord);
+    let recording = canRecord && isRecording();
+    button.classList.toggle('recording', recording);
+    button.title = recording ? 'Hentikan rekaman' : 'Mulai rekaman';
+    let icon = button.querySelector('span .fas');
+    icon.classList.toggle('fa-circle', !recording);
+    icon.classList.toggle('fa-stop-circle', recording);
+    button.querySelector('label').textContent =
+        recording ? 'Stop Rec' : 'Record';
 }
 
 /**
@@ -693,6 +728,13 @@ document.getElementById('mutebutton').onclick = function(e) {
 document.getElementById('sharebutton').onclick = function(e) {
     e.preventDefault();
     addShareMedia();
+};
+
+document.getElementById('recordbutton').onclick = function(e) {
+    e.preventDefault();
+    if(!serverConnection || !serverConnection.socket)
+        return;
+    serverConnection.groupAction(isRecording() ? 'unrecord' : 'record');
 };
 
 getSelectElement('filterselect').onchange = async function(e) {
@@ -2349,6 +2391,7 @@ function gotUser(id, kind) {
         console.warn('Unknown user kind', kind);
         break;
     }
+    updateRecordButton();
 }
 
 function displayUsername() {

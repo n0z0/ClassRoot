@@ -808,8 +808,21 @@ h1 {
     text-align-last: center;
 }
 
-#sharebutton, #unsharebutton {
+#sharebutton, #unsharebutton, #recordbutton {
     white-space: nowrap;
+}
+
+#recordbutton .fa-circle {
+    color: #d03e3e;
+}
+
+#recordbutton.recording, #recordbutton.recording label {
+    color: #d03e3e;
+    animation: record-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes record-blink {
+    50% { opacity: 0.4; }
 }
 
 #unsharebutton {

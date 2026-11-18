@@ -118,7 +118,20 @@ func main() {
 			_ = os.WriteFile(briefingGroup, []byte("{\"public\": true, \"allow-recording\": true, \"users\": {\"admin\": {\"password\": \"admin123\", \"permissions\": \"op\"}}}\n"), 0644)
 		}
 	}
+	// Pastikan room main punya user "admin" (op, bisa merekam) dan
+	// wildcard-user (presenter) dengan satu password bersama.
+	// Password digenerate sekali lalu disimpan di main.json.
+	adminCred, wildcardCred, credErr := ensureGroupCredentials(
+		filepath.Join(group.Directory, "main.json"))
+	if credErr != nil {
+		log.Printf("[AUTH] Peringatan: gagal menyiapkan kredensial room main: %v", credErr)
+	}
+
 	_ = os.MkdirAll(group.DataDirectory, 0755)
+	// Rekaman disimpan relatif terhadap folder aktif tempat ClassRoot dijalankan.
+	if abs, err := filepath.Abs(diskwriter.Directory); err == nil {
+		diskwriter.Directory = abs
+	}
 	_ = os.MkdirAll(diskwriter.Directory, 0755)
 
 	// Fallback lokasi static jika ./static/ tidak ditemukan di working dir
@@ -224,6 +237,7 @@ func main() {
 	}
 
 	printNetworkInterfaces(httpAddr, webserver.Insecure)
+	printCredentials(adminCred, wildcardCred, credErr)
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
@@ -321,6 +335,27 @@ func printNetworkInterfaces(address string, insecure bool) {
 	}
 	fmt.Println("==================================================================")
 	fmt.Println("  Grup Default: /group/main/  |  Rekaman: /recordings/")
+	fmt.Println("==================================================================")
+}
+
+func credentialText(c groupCredential, err error) string {
+	switch {
+	case err != nil:
+		return fmt.Sprintf("(gagal disiapkan: %v)", err)
+	case c.Hashed:
+		return "(tersimpan dalam bentuk hash di groups/main.json)"
+	default:
+		return c.Password
+	}
+}
+
+func printCredentials(admin, wildcard groupCredential, err error) {
+	fmt.Println("  [Login Room main]")
+	fmt.Printf("    Operator  : username %-12s password %s  (bisa Record)\n",
+		adminUsername, credentialText(admin, err))
+	fmt.Printf("    Presenter : username %-12s password %s\n",
+		"(bebas)", credentialText(wildcard, err))
+	fmt.Printf("  Folder Rekaman: %s\n", diskwriter.Directory)
 	fmt.Println("==================================================================")
 	fmt.Println()
 }
