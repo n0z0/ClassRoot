@@ -130,5 +130,53 @@ async function listPublicGroups() {
     }
 }
 
+async function showConnectInfo() {
+    let info;
+    try {
+        let r = await fetch('/connect-info.json', {cache: 'no-store'});
+        if(!r.ok)
+            return;
+        info = await r.json();
+    } catch(e) {
+        return;
+    }
+    if(!info.text)
+        return;
+
+    document.getElementById('connect-qr').src = info.qr;
+    document.getElementById('connect-text').textContent = info.text;
+    document.getElementById('connect-wa').href =
+        'https://wa.me/?text=' + encodeURIComponent(info.text);
+
+    let copy = document.getElementById('connect-copy');
+    copy.onclick = async function() {
+        try {
+            await navigator.clipboard.writeText(info.text);
+        } catch(e) {
+            // Fallback: pilih teks agar bisa disalin manual.
+            let range = document.createRange();
+            range.selectNodeContents(document.getElementById('connect-text'));
+            let sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            copy.textContent = 'Tekan Ctrl+C untuk menyalin';
+            return;
+        }
+        copy.textContent = 'Tersalin \u2713';
+        setTimeout(() => { copy.textContent = 'Salin Teks'; }, 2000);
+    };
+
+    if(navigator.share) {
+        let share = document.getElementById('connect-share-btn');
+        share.classList.remove('invisible');
+        share.onclick = () => {
+            navigator.share({title: 'ClassRoot', text: info.text})
+                .catch(() => {});
+        };
+    }
+
+    document.getElementById('connect-share').classList.remove('invisible');
+}
 
 listPublicGroups();
+showConnectInfo();

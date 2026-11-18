@@ -56,6 +56,10 @@ func Serve(address string, dataDir string) error {
 	http.HandleFunc("/galene-api/", apiHandler)
 	http.HandleFunc("/api/telemetry", telemetryHandler)
 	http.HandleFunc("/cti/telemetry", telemetryHandler)
+	http.HandleFunc("/connect-info.json", connectInfoHandler)
+	http.HandleFunc("/connect-qr.png", connectQRHandler)
+
+	listenPort = PortFromAddress(address, Insecure)
 
 	s := &http.Server{
 		Addr:              address,

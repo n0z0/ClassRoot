@@ -31,6 +31,20 @@
 
       <p id="errormessage"></p>
 
+      <section id="connect-share" class="connect-share invisible">
+        <h2>Info Koneksi untuk Kelas</h2>
+        <p class="connect-hint">Scan QR dengan Android untuk mendapatkan teks info koneksi, lalu bagikan ke grup WA kelas. Bisa juga langsung salin atau kirim teksnya.</p>
+        <div class="connect-card">
+          <img id="connect-qr" alt="QR info koneksi ClassRoot">
+          <pre id="connect-text" class="connect-text"></pre>
+        </div>
+        <div class="connect-actions">
+          <button type="button" id="connect-copy" class="connect-btn">Salin Teks</button>
+          <a id="connect-wa" class="connect-btn connect-btn-wa" target="_blank" rel="noopener">Kirim ke WhatsApp</a>
+          <button type="button" id="connect-share-btn" class="connect-btn invisible">Bagikan&hellip;</button>
+        </div>
+      </section>
+
       <div id="public-groups" class="groups">
         <h2>Daftar Ruang Pertemuan Terbuka</h2>
         <table id="public-groups-table"></table>

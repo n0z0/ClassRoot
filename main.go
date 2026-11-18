@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -125,6 +124,8 @@ func main() {
 		filepath.Join(group.Directory, "main.json"))
 	if credErr != nil {
 		log.Printf("[AUTH] Peringatan: gagal menyiapkan kredensial room main: %v", credErr)
+	} else {
+		webserver.PresenterPassword = wildcardCred.Password
 	}
 
 	_ = os.MkdirAll(group.DataDirectory, 0755)
@@ -271,21 +272,7 @@ func printNetworkInterfaces(address string, insecure bool) {
 	if insecure {
 		scheme = "http"
 	}
-
-	_, port, err := net.SplitHostPort(address)
-	if err != nil {
-		port = address
-		if strings.HasPrefix(port, ":") {
-			port = port[1:]
-		}
-	}
-	if port == "" {
-		if insecure {
-			port = "80"
-		} else {
-			port = "443"
-		}
-	}
+	port := webserver.PortFromAddress(address, insecure)
 
 	fmt.Println()
 	fmt.Println("==================================================================")
@@ -297,44 +284,20 @@ func printNetworkInterfaces(address string, insecure bool) {
 	fmt.Println()
 	fmt.Println("  [Akses Jaringan - Semua Network Interfaces / IP Address]:")
 
-	ifaces, err := net.Interfaces()
+	addrs, err := webserver.NetworkAddresses()
 	if err != nil {
 		fmt.Printf("    [!] Gagal mendeteksi network interfaces: %v\n", err)
-	} else {
-		foundAny := false
-		for _, iface := range ifaces {
-			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-				continue
-			}
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-				if ip == nil || ip.IsLoopback() {
-					continue
-				}
-				if ipv4 := ip.To4(); ipv4 != nil {
-					foundAny = true
-					fmt.Printf("    * %s (IP: %s):\n", iface.Name, ipv4.String())
-					fmt.Printf("        URL Portal : %s://%s:%s/\n", scheme, ipv4.String(), port)
-					fmt.Printf("        Ruang Rapat: %s://%s:%s/group/main/\n", scheme, ipv4.String(), port)
-				}
-			}
-		}
-		if !foundAny {
-			fmt.Println("    (Tidak ada interface IPv4 non-loopback yang aktif)")
-		}
+	} else if len(addrs) == 0 {
+		fmt.Println("    (Tidak ada interface IPv4 non-loopback yang aktif)")
+	}
+	for _, a := range addrs {
+		fmt.Printf("    * %s (IP: %s):\n", a.Interface, a.IP)
+		fmt.Printf("        URL Portal : %s://%s:%s/\n", scheme, a.IP, port)
+		fmt.Printf("        Ruang Rapat: %s://%s:%s/group/main/\n", scheme, a.IP, port)
 	}
 	fmt.Println("==================================================================")
 	fmt.Println("  Grup Default: /group/main/  |  Rekaman: /recordings/")
+	fmt.Println("  QR code untuk join via Android tersedia di halaman utama web.")
 	fmt.Println("==================================================================")
 }
 
