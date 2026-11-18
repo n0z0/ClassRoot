@@ -13,11 +13,6 @@ import (
 // DefaultGroup is the room advertised on the main page and in QR codes.
 const DefaultGroup = "main"
 
-// PresenterPassword is the shared password of the default group's
-// wildcard user.  It is shown on the main page and embedded in the QR
-// code so that students can join.  Empty means unknown.
-var PresenterPassword string
-
 // listenPort is the TCP port the web server listens on.
 var listenPort string
 
@@ -113,11 +108,7 @@ func ConnectText() (string, error) {
 	b.WriteString(textRule + "\n")
 	fmt.Fprintf(&b, "[Login Room %s]\n", DefaultGroup)
 	b.WriteString("Presenter: username (bebas)\n")
-	if PresenterPassword != "" {
-		fmt.Fprintf(&b, "Password : %s\n", PresenterPassword)
-	} else {
-		b.WriteString("Password : (tanyakan ke pengajar)\n")
-	}
+	b.WriteString("Password : (bebas, asal tidak kosong)\n")
 	return b.String(), nil
 }
 

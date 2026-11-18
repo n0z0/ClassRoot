@@ -72,18 +72,28 @@ func resolvePassword(entry map[string]any) (cred groupCredential, changed bool, 
 	return groupCredential{Password: pw}, true, nil
 }
 
+// isWildcardPassword reports whether v is {"type":"wildcard"}.
+func isWildcardPassword(v any) bool {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return false
+	}
+	t, _ := m["type"].(string)
+	return t == "wildcard" && len(m) == 1
+}
+
 // ensureGroupCredentials makes sure the group file has an "admin" user
-// with "op" permission and a wildcard user ("present") sharing a single
-// password.  Missing passwords are generated once and saved, so they
-// stay the same across restarts.
-func ensureGroupCredentials(groupFile string) (admin, wildcard groupCredential, err error) {
+// with "op" permission, whose password is generated once and saved so
+// it stays the same across restarts, and a wildcard user ("present")
+// that accepts any non-empty password.
+func ensureGroupCredentials(groupFile string) (admin groupCredential, err error) {
 	data, err := os.ReadFile(groupFile)
 	if err != nil {
-		return admin, wildcard, err
+		return admin, err
 	}
 	var desc map[string]any
 	if err := json.Unmarshal(data, &desc); err != nil {
-		return admin, wildcard, fmt.Errorf("%s: %w", filepath.Base(groupFile), err)
+		return admin, fmt.Errorf("%s: %w", filepath.Base(groupFile), err)
 	}
 
 	users, _ := desc["users"].(map[string]any)
@@ -101,37 +111,37 @@ func ensureGroupCredentials(groupFile string) (admin, wildcard groupCredential, 
 	}
 	admin, c, err := resolvePassword(adminEntry)
 	if err != nil {
-		return admin, wildcard, err
+		return admin, err
 	}
 	changed = changed || c
 	users[adminUsername] = adminEntry
 	desc["users"] = users
 
+	// Presenter: username dan password bebas.
 	wildEntry, _ := desc["wildcard-user"].(map[string]any)
 	if wildEntry == nil {
 		wildEntry = map[string]any{"permissions": "present"}
 		changed = true
 	}
-	wildcard, c, err = resolvePassword(wildEntry)
-	if err != nil {
-		return admin, wildcard, err
+	if !isWildcardPassword(wildEntry["password"]) {
+		wildEntry["password"] = map[string]any{"type": "wildcard"}
+		changed = true
 	}
-	changed = changed || c
 	desc["wildcard-user"] = wildEntry
 
 	if !changed {
-		return admin, wildcard, nil
+		return admin, nil
 	}
 
 	out, err := json.MarshalIndent(desc, "", "  ")
 	if err != nil {
-		return admin, wildcard, err
+		return admin, err
 	}
 	out = append(out, '\n')
 	if err := os.WriteFile(groupFile, out, 0600); err != nil {
-		return admin, wildcard, err
+		return admin, err
 	}
-	// The file holds cleartext passwords: keep it private.
+	// The file holds a cleartext password: keep it private.
 	_ = os.Chmod(groupFile, 0600)
-	return admin, wildcard, nil
+	return admin, nil
 }

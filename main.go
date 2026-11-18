@@ -117,15 +117,13 @@ func main() {
 			_ = os.WriteFile(briefingGroup, []byte("{\"public\": true, \"allow-recording\": true, \"users\": {\"admin\": {\"password\": \"admin123\", \"permissions\": \"op\"}}}\n"), 0644)
 		}
 	}
-	// Pastikan room main punya user "admin" (op, bisa merekam) dan
-	// wildcard-user (presenter) dengan satu password bersama.
-	// Password digenerate sekali lalu disimpan di main.json.
-	adminCred, wildcardCred, credErr := ensureGroupCredentials(
+	// Pastikan room main punya user "admin" (op, bisa merekam) dengan
+	// password yang digenerate sekali lalu disimpan di main.json, dan
+	// wildcard-user (presenter) dengan username & password bebas.
+	adminCred, credErr := ensureGroupCredentials(
 		filepath.Join(group.Directory, "main.json"))
 	if credErr != nil {
 		log.Printf("[AUTH] Peringatan: gagal menyiapkan kredensial room main: %v", credErr)
-	} else {
-		webserver.PresenterPassword = wildcardCred.Password
 	}
 
 	_ = os.MkdirAll(group.DataDirectory, 0755)
@@ -238,7 +236,7 @@ func main() {
 	}
 
 	printNetworkInterfaces(httpAddr, webserver.Insecure)
-	printCredentials(adminCred, wildcardCred, credErr)
+	printCredentials(adminCred, credErr)
 
 	terminate := make(chan os.Signal, 1)
 	signal.Notify(terminate, syscall.SIGINT, syscall.SIGTERM)
@@ -312,12 +310,12 @@ func credentialText(c groupCredential, err error) string {
 	}
 }
 
-func printCredentials(admin, wildcard groupCredential, err error) {
+func printCredentials(admin groupCredential, err error) {
 	fmt.Println("  [Login Room main]")
 	fmt.Printf("    Operator  : username %-12s password %s  (bisa Record)\n",
 		adminUsername, credentialText(admin, err))
 	fmt.Printf("    Presenter : username %-12s password %s\n",
-		"(bebas)", credentialText(wildcard, err))
+		"(bebas)", "(bebas, asal tidak kosong)")
 	fmt.Printf("  Folder Rekaman: %s\n", diskwriter.Directory)
 	fmt.Println("==================================================================")
 	fmt.Println()
